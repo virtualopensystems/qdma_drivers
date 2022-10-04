@@ -668,7 +668,11 @@ static int xnl_dump_attrs(struct genl_info *info)
 		struct nlattr *na = info->attrs[i];
 
 		if (na) {
-#if KERNEL_VERSION(5, 2, 0) > LINUX_VERSION_CODE
+
+#if ( ( defined(RHEL_RELEASE_VERSION) && \
+        (RHEL_RELEASE_VERSION(8, 3) > RHEL_RELEASE_CODE) ) || \
+      ( !defined(RHEL_RELEASE_VERSION) && \
+        (KERNEL_VERSION(5, 2, 0) > LINUX_VERSION_CODE) ) )
 			if (xnl_policy[i].type == NLA_NUL_STRING) {
 #else
 			if (1) {
