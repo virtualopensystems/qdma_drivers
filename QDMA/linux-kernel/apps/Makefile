@@ -25,6 +25,7 @@ dma-to-device_dir = $(srcdir)/dma-to-device
 dma-xfer_dir = $(srcdir)/dma-xfer
 dma-perf_dir = $(srcdir)/dma-perf
 dma-latency_dir = $(srcdir)/dma-latency
+helm-api_dir = $(srcdir)/helm-api
 
 export topdir
 export bin_dir
@@ -81,8 +82,16 @@ dma-latency:
 	$(MAKE) -C dma-latency
 	@cp -f $(dma-latency_dir)/dma-latency $(bin_dir)	
 	
+.PHONY: helm-api
+helm-api:
+	@echo "#############################";
+	@echo "####  helm-api           ####";
+	@echo "#############################";
+	$(MAKE) -C helm-api
+	@cp -f $(helm-api_dir)/helm-api $(bin_dir)	
+
 .PHONY: apps
-apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency
+apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency helm-api
 
 
 .PHONY: clean
@@ -111,7 +120,11 @@ clean:
 	@echo "####  dma-latency         ####";
 	@echo "#############################";
 	$(MAKE) -C dma-latency clean;
-	@rm -f $(bin_dir)/dma-ctl $(bin_dir)/dma-from-device $(bin_dir)/dma-to-device $(bin_dir)/dma-xfer $(bin_dir)/dma-perf $(bin_dir)/dma-latency
+	@echo "#############################";
+	@echo "####  helm-api           ####";
+	@echo "#############################";
+	$(MAKE) -C helm-api clean;
+	@rm -f $(bin_dir)/dma-ctl $(bin_dir)/dma-from-device $(bin_dir)/dma-to-device $(bin_dir)/dma-xfer $(bin_dir)/dma-perf $(bin_dir)/dma-latency $(bin_dir)/helm-api
 	@for dir in $(ALLSUBDIRS); do \
 	   echo "#######################";\
 	   printf "####  %-8s%5s####\n" $$dir;\
