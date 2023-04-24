@@ -113,11 +113,18 @@ int helm_start(void *dev)
 		return -EIO;
 	}
 	debug_print("In %s: CTRL reg is 0x%04x", __func__, data);
+	//printf("In %s: CTRL reg is 0x%04x", __func__, data);
+	
+	if (data & 0x01) {
+		printf("In %s: kernel is not ready! (ctrl reg is 0x%04x)", __func__, data);
+		return -EBUSY;
+	}
 
 	data &= 0x80; //keep only auto_restart bit
 	data |= 0x01; //set ap_start bit
 
 	debug_print("  writing 0x%04x\n", data);
+	//printf("  writing 0x%04x\n", data);
 	if (helm_reg_write(helm, data, HELM_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
@@ -135,8 +142,8 @@ int helm_isdone(void *dev)
 	if (helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
-	//debug_print("In %s: CTRL reg is 0x%04x, done is %d\n",
-	//	__func__, data, (data >> 1) & 0x01);
+	debug_print("In %s: CTRL reg is 0x%04x, done is %d\n",
+		__func__, data, (data >> 1) & 0x01);
 
 	// ap_done is BIT(1)
 	return (data >> 1 ) & 0x01;
@@ -177,7 +184,7 @@ int helm_isready(void *dev)
 	return !(data & 0x01);
 
 	// ap_ready is BIT(3)
-	//return (data >> 3 ) & 0x01;
+	//return (data >> 3) & 0x01;
 }
 
 int helm_continue(void *dev)
@@ -408,7 +415,7 @@ int helm_reg_dump(void *dev)
 	printf("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
 	printf(" start %d", (data >> 0) & 0x01);
 	printf(" done %d", (data >> 1) & 0x01);
-	printf(" idle %d", (data >> 1) & 0x01);
+	printf(" idle %d", (data >> 2) & 0x01);
 	printf(" ready %d", (data >> 3) & 0x01);
 	printf(" cont %d", (data >> 4) & 0x01);
 	printf(" rest %d", (data >> 7) & 0x01);
@@ -440,3 +447,4 @@ int helm_reg_dump(void *dev)
 
 	return 0;
 }
+
