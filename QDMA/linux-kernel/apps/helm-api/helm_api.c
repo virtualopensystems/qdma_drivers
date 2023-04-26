@@ -42,15 +42,9 @@
 #define MEM_IN_SIZE		((121+1331+1331)*(sizeof(double)))
 #define MEM_OUT_SIZE	((1331)*(sizeof(double)))
 
-//Debug device functions
-int helm_reg_dump(void *dev);
-int helm_ctrl_dump(void *dev);
-
-/* Additional debug prints	*/
-# if 1
-# define debug_print(format, ...)		printf(format, ## __VA_ARGS__)
-#else
-# define debug_print(format, ...)		do { } while (0)
+#ifndef DEBUG
+#define helm_reg_dump(x) (x)
+#define helm_ctrl_dump(x) (x)
 #endif
 
 #define ERR_CHECK(err) do { \
@@ -85,7 +79,7 @@ int mem_read_to_buffer(uint64_t addr, uint64_t size, char** buffer)
 		return -ENOMEM;
 	}
 
-	debug_print("Reading 0x%02x (%d) bytes @ 0x%08x\n", size, size, addr);
+	printf("Reading 0x%02x (%d) bytes @ 0x%08x\n", size, size, addr);
 	int rsize = queue_read(q_info, *buffer, size, addr);
 
 	if (rsize != size){
@@ -116,7 +110,7 @@ int mem_write_from_buffer(uint64_t addr, char* buffer, size_t size)
 		return ret;
 	}
 
-	debug_print("Writing 0x%02x (%d) bytes @ 0x%08x\n", size, size, addr);
+	printf("Writing 0x%02x (%d) bytes @ 0x%08x\n", size, size, addr);
 	int wsize = queue_write(q_info, buffer, size, addr);
 
 	if (wsize != size) {
@@ -139,7 +133,7 @@ int write_buffer_into_file(const char* filename, const char* buffer, size_t buff
 		return -ENOENT;
 	}
 
-	debug_print("Writing 0x%02x (%d) bytes to \"%s\"\n", buffer_size, buffer_size, filename);
+	printf("Writing 0x%02x (%d) bytes to \"%s\"\n", buffer_size, buffer_size, filename);
 	size_t wsize = fwrite(buffer, 1, buffer_size, file);
 
 	if (wsize != buffer_size) {
@@ -176,7 +170,7 @@ int read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_si
 		return -ENOMEM;
 	}
 
-	debug_print("reading 0x%02x (%d) bytes from \"%s\"\n", buffer_size, buffer_size, filename);
+	printf("Reading 0x%02x (%d) bytes from \"%s\"\n", *buffer_size, *buffer_size, filename);
 	size_t rsize = fread(*buffer, 1, *buffer_size, file);
 
 	if (rsize != *buffer_size) {
@@ -208,7 +202,7 @@ int main(int argc, char *argv[])
 	char *outfile_name = argv[2];
 
 
-	debug_print("Initializing kernel @ 0x%08x\n", KERN_ADDR);
+	printf("Initializing kernel @ 0x%08x\n", KERN_ADDR);
 	void * kern;
 
 	kern = helm_dev_init(KERN_ADDR, KERN_PCI_BUS, KERN_PCI_DEV,
@@ -218,54 +212,53 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Error during init!\n");
 		return -1;
 	}
-	debug_print("Kernel initialized correctly!\n");
+	printf("Kernel initialized correctly!\n");
 
-	debug_print("Setting memory in addr  @ 0x%08x\n", MEM_IN_ADDR);
+	printf("Setting memory in addr  @ 0x%08x\n", MEM_IN_ADDR);
 	ret = helm_set_in(kern, MEM_IN_ADDR);
 	ERR_CHECK(ret);
 
-	debug_print("Setting memory out addr @ 0x%08x\n", MEM_OUT_ADDR);
+	printf("Setting memory out addr @ 0x%08x\n", MEM_OUT_ADDR);
 	ret = helm_set_out(kern, MEM_OUT_ADDR);
 	ERR_CHECK(ret);
 
-	debug_print("Setting num times to 1\n");
+	printf("Setting num times to 1\n");
 	ret = helm_set_numtimes(kern, 1);
 	ERR_CHECK(ret);
 
-	debug_print("Setting autorestart to 0\n");
+	printf("Setting autorestart to 0\n");
 	ret = helm_autorestart(kern, 0);
 	ERR_CHECK(ret);
 
-	debug_print("Setting interruptglobal to 0\n");
+	printf("Setting interruptglobal to 0\n");
 	ret = helm_interruptglobal(kern, 0);
 	ERR_CHECK(ret);
 
-	debug_print("Kernel is ready %d\n", helm_isready(kern));
-	debug_print("Kernel is idle %d\n", helm_isidle(kern));
+	printf("Kernel is ready %d\n", helm_isready(kern));
+	printf("Kernel is idle %d\n", helm_isidle(kern));
 
 
 	(void) helm_reg_dump(kern);
 
 
+	//Write inputs from input file into FPGA memory
+	printf("\nWrite inputs to FPGA IN mem\n");
 	char *inbuff;
 	size_t inbuff_size;
 	ret = read_file_into_buffer(infile_name, &inbuff, &inbuff_size);
 	ERR_CHECK(ret);
 
 	if (inbuff_size > MEM_IN_SIZE) {
-		debug_print("Infile size (%d) bigger than mem size (%d)\n", inbuff_size, MEM_IN_SIZE);
+		printf("Infile size (%d) bigger than mem size (%d)\n", inbuff_size, MEM_IN_SIZE);
 		ERR_CHECK(-1);
 	}
 
 	ret = mem_write_from_buffer(MEM_IN_ADDR, inbuff, inbuff_size);
 	ERR_CHECK(ret);
 
-	/*
-	debug_print("\nFilling IN mem with random data\n");
-	(void) mem_clean_random(MEM_IN_ADDR, MEM_TEST_SIZE, 1);
-	*/
 
-	debug_print("\nClean OUT mem\n");
+	//Clean FPGA out memory location
+	printf("\nClean FPGA OUT mem\n");
 	char* tmpbuff = calloc(1, MEM_OUT_SIZE);
 	if (tmpbuff == NULL) {
 		fprintf(stderr, "Error allocating %d bytes\n", MEM_OUT_SIZE);
@@ -276,57 +269,58 @@ int main(int argc, char *argv[])
 	ERR_CHECK(ret);
 
 
+	printf("\nWaiting for kernel to be ready\n");
 	count = 20*1000; //20 sec
-
-	debug_print("\nWaiting for kernel to be ready\n");
 	while ((helm_isready(kern) == 0) && (--count != 0)) {
-		nanosleep(&ts, NULL);
-		if ((count % 1000) == 0) {
-			debug_print(" ."); fflush(stdout);
+		nanosleep(&ts, NULL); // sleep 1ms
+		if ((count % 1000) == 0) { // Print "." every sec
+			printf(" ."); fflush(stdout);
 		}
 	}
 	if (count == 0) {
-		debug_print("\nTIMEOUT reached\n\n");
+		printf("\nTIMEOUT reached\n\n");
 		goto error;
 	}
-
-
 	(void) helm_ctrl_dump(kern);
 
-	debug_print("Starting kernel operations\n");
+
+	printf("Starting kernel operations\n");
 	ret = helm_start(kern);
 	if (helm_isdone(kern)) {
+		// If this is not the first operation, the done bit will remain high.
+		// To start again the procedure, we must also set the continue bit
 		helm_continue(kern);
 	}
 	ERR_CHECK(ret);
-	//(void) helm_ctrl_dump(kern); //will alter clear on read registers
+	//(void) helm_ctrl_dump(kern); //commented to avoid altering clear on read registers
 
-	debug_print("\nWaiting for kernel to finish\n");
+
+	printf("\nWaiting for kernel to finish\n");
 	count = 20*1000; //20 sec
-	while ( !(helm_isdone(kern) || helm_isidle(kern))
-			&& (--count != 0)) {
-		nanosleep(&ts, NULL);
-		if ((count % 1000) == 0) {
-			debug_print(" ."); fflush(stdout);
+	while ( !(helm_isdone(kern) || helm_isidle(kern)) && (--count != 0)) {
+		nanosleep(&ts, NULL); // sleep 1ms
+		if ((count % 1000) == 0) { // Print "." every sec
+			printf(" ."); fflush(stdout);
 		}
 	}
-
 	if (count == 0) {
-		debug_print("\nTIMEOUT reached\n\n");
+		printf("\nTIMEOUT reached\n\n");
 		goto error;
 	} else {
-		debug_print("\nFINISHED!\n");
+		printf("\nFINISHED!\n");
 	}
-
 	(void) helm_ctrl_dump(kern);
 
+
+	// Read FPGA out mem into buffer and write the buffer into  output file
 	char *outbuff;
 	ret = mem_read_to_buffer(MEM_OUT_ADDR, MEM_OUT_SIZE, &outbuff);
 	ERR_CHECK(ret);
 	ret = write_buffer_into_file(outfile_name, outbuff, MEM_OUT_SIZE);
 	ERR_CHECK(ret);
 
-	debug_print("\nDestroying kernel\n");
+
+	printf("\nDestroying kernel\n");
 error:
 	ret = helm_dev_destroy(kern);
 	if (ret < 0) {

@@ -39,12 +39,11 @@ typedef struct {
 
 
 /* Additional debug prints  */
-# if 0
-# define debug_print(format, ...)       printf(format, ## __VA_ARGS__)
+#ifdef DEBUG
+#define debug_print(format, ...)	printf(format, ## __VA_ARGS__)
 #else
-# define debug_print(format, ...)       do { } while (0)
+#define debug_print(format, ...)	do { } while (0)
 #endif
-
 
 static inline int helm_reg_read(helm_dev_t *dev, uint32_t *data, uint16_t reg)
 {
@@ -399,6 +398,7 @@ int helm_get_interruptstatus(void *dev, uint32_t *data)
 }
 
 // For debug only
+#ifdef DEBUG
 int helm_reg_dump(void *dev)
 {
 	helm_dev_t *helm = (helm_dev_t*) dev;
@@ -406,46 +406,45 @@ int helm_reg_dump(void *dev)
 
 	CHECK_DEV_PTR(dev);
 
-	printf("\nIn %s: Dumping device registers @ 0x%08x\n", __func__, helm->base);
+	debug_print("\nIn %s: Dumping device registers @ 0x%08x\n", __func__, helm->base);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL);
-	printf("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
-	printf(" start %d", (data >> 0) & 0x01);
-	printf(" done %d", (data >> 1) & 0x01);
-	printf(" idle %d", (data >> 2) & 0x01);
-	printf(" ready %d", (data >> 3) & 0x01);
-	printf(" cont %d", (data >> 4) & 0x01);
-	printf(" rest %d", (data >> 7) & 0x01);
-	printf(" inter %d\n", (data >> 9) & 0x01);
+	debug_print("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
+	debug_print(" start %d", (data >> 0) & 0x01);
+	debug_print(" done %d", (data >> 1) & 0x01);
+	debug_print(" idle %d", (data >> 2) & 0x01);
+	debug_print(" ready %d", (data >> 3) & 0x01);
+	debug_print(" cont %d", (data >> 4) & 0x01);
+	debug_print(" rest %d", (data >> 7) & 0x01);
+	debug_print(" inter %d\n", (data >> 9) & 0x01);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_GIE);
-	printf("  0x%02x GIE:  0x%08x\n", HELM_CTRL_ADDR_GIE, data);
+	debug_print("  0x%02x GIE:  0x%08x\n", HELM_CTRL_ADDR_GIE, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_IER);
-	printf("  0x%02x IER:  0x%08x\n", HELM_CTRL_ADDR_IER, data);
+	debug_print("  0x%02x IER:  0x%08x\n", HELM_CTRL_ADDR_IER, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_ISR);
-	printf("  0x%02x ISR:  0x%08x\n", HELM_CTRL_ADDR_ISR, data);
+	debug_print("  0x%02x ISR:  0x%08x\n", HELM_CTRL_ADDR_ISR, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_IN_DATA);
-	printf("  0x%02x IN0:  0x%08x\n", HELM_CTRL_ADDR_IN_DATA, data);
+	debug_print("  0x%02x IN0:  0x%08x\n", HELM_CTRL_ADDR_IN_DATA, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_IN_DATA + REG_SIZE);
-	printf("  0x%02x IN1:  0x%08x\n", HELM_CTRL_ADDR_IN_DATA + REG_SIZE, data);
+	debug_print("  0x%02x IN1:  0x%08x\n", HELM_CTRL_ADDR_IN_DATA + REG_SIZE, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_OUT_DATA);
-	printf("  0x%02x OUT0: 0x%08x\n", HELM_CTRL_ADDR_OUT_DATA, data);
+	debug_print("  0x%02x OUT0: 0x%08x\n", HELM_CTRL_ADDR_OUT_DATA, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_OUT_DATA + REG_SIZE);
-	printf("  0x%02x OUT1: 0x%08x\n", HELM_CTRL_ADDR_OUT_DATA + REG_SIZE, data);
+	debug_print("  0x%02x OUT1: 0x%08x\n", HELM_CTRL_ADDR_OUT_DATA + REG_SIZE, data);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_NUM_TIMES);
-	printf("  0x%02x NUM:  0x%08x\n\n", HELM_CTRL_ADDR_NUM_TIMES, data);
+	debug_print("  0x%02x NUM:  0x%08x\n\n", HELM_CTRL_ADDR_NUM_TIMES, data);
 
 	return 0;
 }
 
-// For debug only
 int helm_ctrl_dump(void *dev)
 {
 	helm_dev_t *helm = (helm_dev_t*) dev;
@@ -454,14 +453,15 @@ int helm_ctrl_dump(void *dev)
 	CHECK_DEV_PTR(dev);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL);
-	printf("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
-	printf(" start %d", (data >> 0) & 0x01);
-	printf(" done %d", (data >> 1) & 0x01);
-	printf(" idle %d", (data >> 2) & 0x01);
-	printf(" ready %d", (data >> 3) & 0x01);
-	printf(" cont %d", (data >> 4) & 0x01);
-	printf(" rest %d", (data >> 7) & 0x01);
-	printf(" inter %d\n", (data >> 9) & 0x01);
+	debug_print("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
+	debug_print(" start %d", (data >> 0) & 0x01);
+	debug_print(" done %d", (data >> 1) & 0x01);
+	debug_print(" idle %d", (data >> 2) & 0x01);
+	debug_print(" ready %d", (data >> 3) & 0x01);
+	debug_print(" cont %d", (data >> 4) & 0x01);
+	debug_print(" rest %d", (data >> 7) & 0x01);
+	debug_print(" inter %d\n", (data >> 9) & 0x01);
 
 	return 0;
 }
+#endif

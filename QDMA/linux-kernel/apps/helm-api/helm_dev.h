@@ -16,9 +16,9 @@
 #define HELM_AP_READY_INTERRUPT 	(1 << 1)
 
 
-int helm_dev_destroy(void* dev);
-
 void* helm_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int is_vf, int q_start);
+
+int helm_dev_destroy(void* dev);
 
 int helm_start(void *dev);
 
@@ -51,5 +51,10 @@ int helm_set_interruptconf(void *dev, uint32_t data);
 int helm_get_interruptconf(void *dev, uint32_t *data);
 
 int helm_get_interruptstatus(void *dev, uint32_t *data);
+
+#ifdef DEBUG
+int helm_reg_dump(void *dev);
+int helm_ctrl_dump(void *dev);
+#endif
 
 #endif

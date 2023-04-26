@@ -14,6 +14,9 @@ CFLAGS += -g
 #CFLAGS += -O2 -fno-inline -Wall -Wstrict-prototypes
 CFLAGS += -I. -I../include -I../dma-utils
 CFLAGS += $(EXTRA_FLAGS)
+ifeq ($(DEBUG),1)
+  CFLAGS += -g -DDEBUG
+endif
 
 HELM-API = helm-api
 DMA-UTILS_OBJS := $(patsubst %.c,%.o,$(wildcard ../dma-utils/*.c))

@@ -27,10 +27,10 @@
 #define QDMA_Q_NAME_LEN     (32)
 
 /* Additional debug prints  */
-# if 0
-# define debug_print(format, ...)       printf(format, ## __VA_ARGS__)
+#ifdef DEBUG
+#define debug_print(format, ...)	printf(format, ## __VA_ARGS__)
 #else
-# define debug_print(format, ...)       do { } while (0)
+#define debug_print(format, ...)	do { } while (0)
 #endif
 
 static int queue_validate(struct queue_conf *q_conf)

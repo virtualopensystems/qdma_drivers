@@ -109,6 +109,7 @@ struct list_head {
 #if DATA_VALIDATION
 unsigned short valid_data[2*1024];
 #endif
+static unsigned int tsecs = 0;
 
 static void clear_events(struct io_info *_info, struct list_head *node);
 static void dump_thrd_info(struct io_info *_info) {
@@ -541,7 +542,6 @@ static void *io_thread(struct io_info *_info)
 	struct dmaxfer_io_info *dinfo;
 	int ret;
 	int s;
-	unsigned int tsecs;
 	unsigned int max_io = MAX_AIO_EVENTS;
 	unsigned int cnt = 0;
 	pthread_attr_t attr;
