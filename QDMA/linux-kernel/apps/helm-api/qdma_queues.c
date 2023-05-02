@@ -46,7 +46,7 @@ static int queue_validate(struct queue_conf *q_conf)
 	/* Get dev info from qdma driver */
 	ret = qdma_dev_info(&xcmd);
 	if (ret < 0) {
-		printf("Failed to read qmax for PF: %d\n", q_conf->fun_id);
+		printf("Failed to read qmax for F id: %d, is vf %d\n", q_conf->fun_id, q_conf->is_vf);
 		return ret;
 	}
 
@@ -54,6 +54,9 @@ static int queue_validate(struct queue_conf *q_conf)
 	//		__func__, xcmd.resp.dev_info.qmax, xcmd.resp.dev_info.qbase);
 
 	if (!xcmd.resp.dev_info.qmax) {
+		//char aio_max_nr_cmd[100] = {'\0'};
+		//snprintf(aio_max_nr_cmd, 100, "echo %u > /proc/sys/fs/aio-max-nr", aio_max_nr);
+		//system(aio_max_nr_cmd);
 		printf("Error: invalid qmax assigned to function :%d qmax :%u\n",
 				q_conf->fun_id, xcmd.resp.dev_info.qmax);
 		return -EINVAL;
@@ -214,7 +217,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 		return -EINVAL;
 	}
 
-	debug_print("In %s: BUS 0x%04X DEV 0x%02x PF %d is_VF %d q_start %d\n",
+	debug_print("In %s: BUS 0x%04X DEV 0x%02x F %d is_VF %d q_start %d\n",
 			__func__, q_conf->pci_bus, q_conf->pci_dev, q_conf->fun_id,
 			q_conf->is_vf, q_conf->q_start);
 
