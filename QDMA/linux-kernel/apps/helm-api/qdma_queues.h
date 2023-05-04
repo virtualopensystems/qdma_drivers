@@ -53,7 +53,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf);
  *****************************************************************************/
 int queue_destroy(struct queue_info *q_info);
 
-ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr);
-ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr);
+size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr);
+size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr);
 
 #endif /* QDMA_QUEUES_H */

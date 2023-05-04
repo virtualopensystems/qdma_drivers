@@ -43,10 +43,14 @@ static int queue_validate(struct queue_conf *q_conf)
 	xcmd.vf = q_conf->is_vf;
 	xcmd.if_bdf = QCONF_TO_BDF(q_conf);
 
+	debug_print("In %s: dev %07x is_vf %d\n",
+			__func__, xcmd.if_bdf, q_conf->is_vf);
+
 	/* Get dev info from qdma driver */
 	ret = qdma_dev_info(&xcmd);
 	if (ret < 0) {
-		printf("Failed to read qmax for F id: %d, is vf %d\n", q_conf->fun_id, q_conf->is_vf);
+		fprintf(stderr, "ERR: failed to read qmax of dev %07x, is vf %d\n",
+				xcmd.if_bdf, q_conf->is_vf);
 		return ret;
 	}
 
@@ -57,15 +61,15 @@ static int queue_validate(struct queue_conf *q_conf)
 		//char aio_max_nr_cmd[100] = {'\0'};
 		//snprintf(aio_max_nr_cmd, 100, "echo %u > /proc/sys/fs/aio-max-nr", aio_max_nr);
 		//system(aio_max_nr_cmd);
-		printf("Error: invalid qmax assigned to function :%d qmax :%u\n",
-				q_conf->fun_id, xcmd.resp.dev_info.qmax);
+		fprintf(stderr, "ERR: invalid qmax %u of dev %07x\n",
+				xcmd.resp.dev_info.qmax, xcmd.if_bdf);
 		return -EINVAL;
 	}
 
 	/* Only one queue is needed */
 	/*
 	if (xcmd.resp.dev_info.qmax < q_conf->num_q) {
-		printf("Error: Q Range is beyond QMAX %u "
+		fprintf(stderr, "Error: Q Range is beyond QMAX %u "
 				"Funtion: %x Q start :%u Q Range End :%u\n",
 				xcmd.resp.dev_info.qmax, q_conf->fun_id, q_conf->q_start, q_conf->q_start + q_conf->num_q);
 		return -EINVAL;
@@ -84,7 +88,6 @@ static int queue_stop(struct queue_info *q_info)
 	memset(&xcmd, 0, sizeof(struct xcmd_info));
 
 	qparm = &xcmd.req.qparm;
-
 	xcmd.op = XNL_CMD_Q_STOP;
 	xcmd.vf = q_info->is_vf;
 	xcmd.if_bdf = q_info->bdf;
@@ -93,9 +96,11 @@ static int queue_stop(struct queue_info *q_info)
 	qparm->flags |= XNL_F_QMODE_MM;
 	qparm->flags |= XNL_F_QDIR_BOTH;
 
+	debug_print("In %s: dev %07x qid %d is_vf %d\n",
+			__func__, q_info->bdf, q_info->qid, q_info->is_vf);
 	ret = qdma_q_stop(&xcmd);
 	if (ret < 0) {
-		printf("Q_STOP failed, ret :%d\n", ret);
+		fprintf(stderr, "ERR: qdma_q_stop failed with err %d\n", ret);
 	}
 	return ret;
 }
@@ -109,7 +114,6 @@ static int queue_del(struct queue_info *q_info)
 	memset(&xcmd, 0, sizeof(struct xcmd_info));
 
 	qparm = &xcmd.req.qparm;
-
 	xcmd.op = XNL_CMD_Q_DEL;
 	xcmd.vf = q_info->is_vf;
 	xcmd.if_bdf = q_info->bdf;
@@ -118,9 +122,11 @@ static int queue_del(struct queue_info *q_info)
 	qparm->flags |= XNL_F_QMODE_MM;
 	qparm->flags |= XNL_F_QDIR_BOTH;
 
+	debug_print("In %s: dev %07x qid %d is_vf %d\n",
+			__func__, q_info->bdf, q_info->qid, q_info->is_vf);
 	ret = qdma_q_del(&xcmd);
 	if (ret < 0) {
-		printf("Q_DEL failed, ret :%d\n", ret);
+		fprintf(stderr, "ERR: qdma_q_del failed with err %d\n", ret);
 	}
 	return ret;
 }
@@ -134,7 +140,6 @@ static int queue_add(struct queue_info *q_info)
 	memset(&xcmd, 0, sizeof(struct xcmd_info));
 
 	qparm = &xcmd.req.qparm;
-
 	xcmd.op = XNL_CMD_Q_ADD;
 	xcmd.vf = q_info->is_vf;
 	xcmd.if_bdf = q_info->bdf;
@@ -144,11 +149,11 @@ static int queue_add(struct queue_info *q_info)
 	qparm->flags |= XNL_F_QDIR_BOTH;
 	qparm->sflags = qparm->flags;
 
-	debug_print("In %s: BDF %05x QID %d is_vf %d\n",
+	debug_print("In %s: dev %07x qid %d is_vf %d\n",
 			__func__, q_info->bdf, q_info->qid, q_info->is_vf);
 	ret = qdma_q_add(&xcmd);
 	if (ret < 0) {
-		printf("Q_ADD failed, ret :%d\n", ret);
+		fprintf(stderr, "ERR: qdma_q_add failed with err %d\n", ret);
 	}
 	return ret;
 }
@@ -179,7 +184,7 @@ static int queue_start(struct queue_info *q_info)
 
 	ret = qdma_q_start(&xcmd);
 	if (ret < 0) {
-		printf("Q_START failed, ret :%d\n", ret);
+		fprintf(stderr, "ERR: qdma_q_start failed with err %d\n", ret);
 	}
 	return ret;
 }
@@ -187,11 +192,11 @@ static int queue_start(struct queue_info *q_info)
 int queue_destroy(struct queue_info *q_info)
 {
 	if (!q_info) {
-		printf("Error: Invalid queue info\n");
+		fprintf(stderr, "ERR: Invalid queue info pointer\n");
 		return -EINVAL;
 	}
 
-	debug_print("In %s: destroying queue fd %d BDF %05x\n",
+	debug_print("In %s: destroying queue fd %d dev %07x\n",
 			__func__, q_info->fd, q_info->bdf);
 
 	if (q_info->fd > 0) {
@@ -213,7 +218,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	char *q_name;
 
 	if (!pq_info) {
-		printf("Error: Invalid queue info\n");
+		fprintf(stderr, "ERR: Invalid queue info pointer\n");
 		return -EINVAL;
 	}
 
@@ -229,7 +234,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	/* Allocate queue info structure */
 	*pq_info = q_info = (struct queue_info *)calloc(1, sizeof(struct queue_info));
 	if (!q_info) {
-		printf("Error: OOM\n");
+		fprintf(stderr, "ERR: Cannot allocate %ld bytes\n", sizeof(struct queue_info));
 		return -ENOMEM;
 	}
 
@@ -240,13 +245,16 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	/* Create (add) queue */
 	ret = queue_add(q_info);
 	if (ret < 0) {
-		goto error;
+		free(q_info);
+		return ret;
 	}
 
 	/* Start queue */
 	ret = queue_start(q_info);
 	if (ret < 0) {
-		goto error2;
+		queue_del(q_info);
+		free(q_info);
+		return ret;
 	}
 
 	/* Create queue name from queue info */
@@ -261,23 +269,18 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	free(q_name); //free queue name anyway
 
 	if (ret < 0) {
-		fprintf(stderr, "unable to open device %s, %d.\n", q_name, ret);
-		perror("open device");
-		goto error2;
+		fprintf(stderr, "ERR: unable to open device %s, %d.\n", q_name, ret);
+		queue_del(q_info);
+		free(q_info);
+		return ret;
 	}
 	q_info->fd = ret;
 
 	return 0;
-
-error2:
-	queue_del(q_info);
-error:
-	free(q_info);
-	return ret;
 }
 
 // read_to_buffer() from dma_xfer_utils.c
-ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
+size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
 {
 	ssize_t ret;
 	uint64_t count = 0;
@@ -285,7 +288,7 @@ ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_
 	char *buf = (char*) data;
 	off_t offset = addr;
 	
-
+	debug_print("In %s: R %lu bytes @ 0x%08lx dev %07x\n", __func__, size, addr, q_info->bdf);
 	do { /* Support zero byte transfer */
 		uint64_t bytes = size - count;
 
@@ -331,7 +334,7 @@ ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_
 
 
 // write_from_buffer() from dma_xfer_utils.c
-ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
+size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
 {
 	ssize_t ret;
 	uint64_t count = 0;
@@ -339,6 +342,7 @@ ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64
 	char *buf = (char*) data;
 	off_t offset = addr;
 
+	debug_print("In %s: W %lu bytes @ 0x%08lx dev %07x\n", __func__, size, addr, q_info->bdf);
 	do { /* Support zero byte transfer */
 		uint64_t bytes = size - count;
 
@@ -348,14 +352,11 @@ ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64
 		if (offset) {
 			ret = lseek(fd, offset, SEEK_SET);
 			if (ret < 0) {
-				fprintf(stderr,
-					"ERR: seek off 0x%lx failed %zd.\n", offset, ret);
-				perror("seek file");
+				fprintf(stderr, "ERR: seek off 0x%lx failed %zd.\n", offset, ret);
 				return -EIO;
 			}
 			if (ret != offset) {
-				fprintf(stderr,
-					"ERR: seek off 0x%lx != 0x%lx.\n", ret, offset);
+				fprintf(stderr, "ERR: seek off 0x%lx != 0x%lx.\n", ret, offset);
 				return -EIO;
 			}
 		}
@@ -364,7 +365,6 @@ ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64
 		ret = write(fd, buf, bytes);
 		if (ret < 0) {
 			fprintf(stderr, "ERR: W off 0x%lx, 0x%lx failed %zd.\n", offset, bytes, ret);
-			perror("write file");
 			return -EIO;
 		}
 		if (ret != bytes) {
