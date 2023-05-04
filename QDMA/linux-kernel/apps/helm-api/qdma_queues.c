@@ -25,6 +25,7 @@
 							((unsigned int)qconf->pci_dev << 4) | \
 							(q_conf->fun_id))
 #define QDMA_Q_NAME_LEN     (32)
+#define QDMA_DEF_QUEUES     (2) // Number of queue to set
 
 /* Additional debug prints  */
 #ifdef DEBUG
@@ -33,7 +34,8 @@
 #define debug_print(format, ...)	do { } while (0)
 #endif
 
-static int queue_validate(struct queue_conf *q_conf)
+
+static int qmax_get(struct queue_conf *q_conf)
 {
 	struct xcmd_info xcmd;
 	int ret;
@@ -43,8 +45,7 @@ static int queue_validate(struct queue_conf *q_conf)
 	xcmd.vf = q_conf->is_vf;
 	xcmd.if_bdf = QCONF_TO_BDF(q_conf);
 
-	debug_print("In %s: dev %07x is_vf %d\n",
-			__func__, xcmd.if_bdf, q_conf->is_vf);
+	debug_print("In %s: dev %07x is_vf %d\n", __func__, xcmd.if_bdf, q_conf->is_vf);
 
 	/* Get dev info from qdma driver */
 	ret = qdma_dev_info(&xcmd);
@@ -54,27 +55,34 @@ static int queue_validate(struct queue_conf *q_conf)
 		return ret;
 	}
 
-	//debug_print("In %s: qmax %d qbase %d\n",
-	//		__func__, xcmd.resp.dev_info.qmax, xcmd.resp.dev_info.qbase);
+	return xcmd.resp.dev_info.qmax;
+}
 
-	if (!xcmd.resp.dev_info.qmax) {
-		//char aio_max_nr_cmd[100] = {'\0'};
-		//snprintf(aio_max_nr_cmd, 100, "echo %u > /proc/sys/fs/aio-max-nr", aio_max_nr);
-		//system(aio_max_nr_cmd);
-		fprintf(stderr, "ERR: invalid qmax %u of dev %07x\n",
-				xcmd.resp.dev_info.qmax, xcmd.if_bdf);
-		return -EINVAL;
-	}
 
-	/* Only one queue is needed */
-	/*
-	if (xcmd.resp.dev_info.qmax < q_conf->num_q) {
-		fprintf(stderr, "Error: Q Range is beyond QMAX %u "
-				"Funtion: %x Q start :%u Q Range End :%u\n",
-				xcmd.resp.dev_info.qmax, q_conf->fun_id, q_conf->q_start, q_conf->q_start + q_conf->num_q);
-		return -EINVAL;
+static int queue_validate(struct queue_conf *q_conf)
+{
+	if (qmax_get(q_conf) < QDMA_DEF_QUEUES) {
+		char qmax_cmd[100] = {'\0'};
+		snprintf(qmax_cmd, 100, "echo %u > /sys/bus/pci/devices/0000:%02x:%02x.%01x/qdma/qmax",
+				QDMA_DEF_QUEUES, q_conf->pci_bus, q_conf->pci_dev, q_conf->fun_id);
+
+		debug_print("In %s: setting %d queues\n", __func__, QDMA_DEF_QUEUES);
+		debug_print("  CMD: %s\n", qmax_cmd);
+
+		int ret = system(qmax_cmd);
+		if (ret != 0) {
+			fprintf(stderr, "ERR: failed setting %d queues on dev %02x:%02x.%01x, ret %d\n",
+					QDMA_DEF_QUEUES, q_conf->pci_bus, q_conf->pci_dev, q_conf->fun_id, ret);
+			return -EIO;
+		}
+
+		ret = qmax_get(q_conf);
+		if (ret < QDMA_DEF_QUEUES) {
+			fprintf(stderr, "ERR: failed setting %d queues, set %d instead\n",
+					QDMA_DEF_QUEUES, ret);
+			return -EIO;
+		}
 	}
-	*/
 
 	return 0;
 }
@@ -222,7 +230,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 		return -EINVAL;
 	}
 
-	debug_print("In %s: BUS 0x%04X DEV 0x%02x F %d is_VF %d q_start %d\n",
+	debug_print("In %s: BUS 0x%04x DEV 0x%02x F %d is_vf %d q_start %d\n",
 			__func__, q_conf->pci_bus, q_conf->pci_dev, q_conf->fun_id,
 			q_conf->is_vf, q_conf->q_start);
 
