@@ -71,9 +71,9 @@ int helm_dev_destroy(void* dev)
 void* helm_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int is_vf, int q_start)
 {
 	int ret;
-	int queue_fd = -1;
 	helm_dev_t *helm;
 	struct queue_conf q_conf;
+	uint32_t data;
 
 	helm = (helm_dev_t*) malloc(sizeof(helm_dev_t));
 	if (helm == NULL) {
@@ -96,6 +96,13 @@ void* helm_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int
 
 	helm->base = dev_addr;
 	debug_print("In %s: setup done, base addr 0x%08lx\n", __func__, helm->base);
+
+	// Test if kernel control register is readable
+	if (helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL)) {
+		fprintf(stderr, "ERR: Cannot access helm device @ 0x%016lx\n", dev_addr);
+		helm_dev_destroy((void*)helm);
+		return NULL;
+	}
 
 	return (void*) helm;
 }

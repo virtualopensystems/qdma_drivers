@@ -23,13 +23,13 @@
 #include "version.h"
 
 
-#define KERN_PCI_BUS	(0x0083)
-#define KERN_PCI_VF_BUS	(0x0007)
-#define KERN_PCI_DEV	(0x00)
-#define KERN_FUN_ID		(0x00)
-#define KERN_IS_VF		(0x00)
-#define KERN_Q_START	(0)
-#define VF_NUM_MAX		(252) // Max num of VF allowed by QDMA
+#define KERN_PCI_BUS		(0x0083)
+#define KERN_PCI_VF_BUS		(0x0007)
+#define KERN_PCI_DEV		(0x00)
+#define KERN_FUN_ID			(0x00)
+#define KERN_IS_VF			(0x00)
+#define KERN_Q_START		(0)
+#define VF_NUM_MAX			(252) // Max num of VF allowed by QDMA
 
 /* helm4.bit */
 #define KERN_BASE_ADDR		(0x10000000)
@@ -148,8 +148,8 @@ int write_buffer_into_file(const char* filename, const char* buffer, size_t buff
 	FILE* file = fopen(filename, "wb");
 
 	if (file == NULL) {
-		fprintf(stderr, "Failed opening file \"%s\"\n", filename);
-		return -ENOENT;
+		fprintf(stderr, "ERR %d: Failed opening file \"%s\"\n", errno, filename);
+		return -errno;
 	}
 
 	info_print("Writing 0x%02lx (%ld) bytes to \"%s\"\n", buffer_size, buffer_size, filename);
@@ -168,40 +168,51 @@ int write_buffer_into_file(const char* filename, const char* buffer, size_t buff
 int read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_size)
 {
 	FILE* file = fopen(filename, "rb");
+	size_t size = 0;
+	char* data = NULL;
 
 	if (file == NULL) {
-		fprintf(stderr, "Failed opening file \"%s\"\n", filename);
-		*buffer = NULL;
-		*buffer_size = 0;
+		fprintf(stderr, "ERR %d: Failed opening file \"%s\"\n", errno, filename);
+		return -errno;
 		return -ENOENT;
 	}
 
-	fseek(file, 0L, SEEK_END);
-	*buffer_size = ftell(file);
-	fseek(file, 0L, SEEK_SET);
+	if (fseek(file, 0L, SEEK_END) < 0) {
+		fprintf(stderr, "ERR %d: Failed fseek on file \"%s\"\n", errno, filename);
+		return -errno;
+	}
+	size = ftell(file);
+	if (size < 0) {
+		fprintf(stderr, "ERR %d: Failed ftell on file \"%s\"\n", errno, filename);
+		return -errno;
+	}
+	if (fseek(file, 0L, SEEK_SET) < 0) {
+		fprintf(stderr, "ERR %d: Failed fseek on file \"%s\"\n", errno, filename);
+		return -errno;
+	}
 
-	*buffer = (char*) malloc(*buffer_size);
-	if (*buffer == NULL) {
-		fprintf(stderr, "Error allocating %ld bytes\n", *buffer_size);
+	data = (char*) malloc(size);
+	if (data == NULL) {
+		fprintf(stderr, "Error allocating %ld bytes\n", size);
 		fclose(file);
-		*buffer = NULL;
-		*buffer_size = 0;
 		return -ENOMEM;
 	}
 
-	info_print("Reading 0x%02lx (%ld) bytes from \"%s\"\n", *buffer_size, *buffer_size, filename);
-	size_t rsize = fread(*buffer, 1, *buffer_size, file);
+	info_print("Reading 0x%02lx (%ld) bytes from \"%s\"\n", size, size, filename);
+	size_t rsize = fread(data, 1, size, file);
 
-	if (rsize != *buffer_size) {
-		fprintf(stderr, "Error: read %ld bytes instead of %ld\n", rsize, *buffer_size);
+	if (rsize != size) {
+		fprintf(stderr, "Error: read %ld bytes instead of %ld\n", rsize, size);
 		fclose(file);
-		free(*buffer);
-		*buffer = NULL;
-		*buffer_size = 0;
+		free(data);
 		return -EIO;
 	}
 
 	fclose(file);
+
+	*buffer_size = size;
+	*buffer = data;
+
 	return 0;
 }
 
@@ -340,12 +351,12 @@ int main(int argc, char *argv[])
 		size_t buff_size;
 		ret = read_file_into_buffer(input_filename, &buff, &buff_size);
 		ERR_CHECK(ret);
-	
+
 		if (buff_size != MEM_IN_SIZE) {
 			printf("Infile size (%ld) != mem size (%ld)\n", buff_size, MEM_IN_SIZE);
 			ERR_CHECK(-EINVAL);
 		}
-	
+
 		ret = mem_write_from_buffer(mem_in_addr, buff, buff_size);
 		ERR_CHECK(ret);
 		free(buff);

@@ -214,7 +214,7 @@ int queue_destroy(struct queue_info *q_info)
 	queue_stop(q_info);
 	queue_del(q_info);
 	free(q_info);
-	
+
 	return 0;
 }
 
@@ -266,7 +266,11 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	}
 
 	/* Create queue name from queue info */
-	q_name = calloc(QDMA_Q_NAME_LEN, 1);
+	q_name = calloc(1, QDMA_Q_NAME_LEN);
+	if (q_name == NULL) {
+		fprintf(stderr, "ERR: Cannot allocate %ld bytes\n", QDMA_Q_NAME_LEN);
+		return -ENOMEM;
+	}
 	snprintf(q_name, QDMA_Q_NAME_LEN, "/dev/qdma%s%05x-MM-%d",
 			(q_info->is_vf) ? "vf" : "",
 			q_info->bdf,
@@ -277,10 +281,10 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	free(q_name); //free queue name anyway
 
 	if (ret < 0) {
-		fprintf(stderr, "ERR: unable to open device %s, %d.\n", q_name, ret);
+		fprintf(stderr, "ERR %d: while opening device %s.\n", errno, q_name);
 		queue_del(q_info);
 		free(q_info);
-		return ret;
+		return -errno;
 	}
 	q_info->fd = ret;
 
@@ -295,7 +299,7 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t
 	int fd = q_info->fd;
 	char *buf = (char*) data;
 	off_t offset = addr;
-	
+
 	debug_print("In %s: R %lu bytes @ 0x%08lx dev %07x\n", __func__, size, addr, q_info->bdf);
 	do { /* Support zero byte transfer */
 		uint64_t bytes = size - count;
@@ -306,8 +310,8 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t
 		if (offset) {
 			ret = lseek(fd, offset, SEEK_SET);
 			if (ret < 0) {
-				fprintf(stderr, "ERR: seek off 0x%lx failed %zd\n", offset, ret);
-				return -EIO;
+				fprintf(stderr, "ERR %d: seek off 0x%lx failed\n", errno, offset);
+				return -errno;
 			}
 			if (ret != offset) {
 				fprintf(stderr, "ERR: seek off 0x%lx != 0x%lx\n", ret, offset);
@@ -318,8 +322,8 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t
 		/* read data from device file into memory buffer */
 		ret = read(fd, buf, bytes);
 		if (ret < 0) {
-			fprintf(stderr, "ERR: R off 0x%lx, 0x%lx failed %zd.\n", offset, bytes, ret);
-			return -EIO;
+			fprintf(stderr, "ERR %d: R off 0x%lx, 0x%lx failed %zd.\n", errno, offset, bytes);
+			return -errno;
 		}
 		if (ret != bytes) {
 			fprintf(stderr, "ERR: R off 0x%lx, 0x%lx != 0x%lx.\n", offset, ret, bytes);
@@ -360,8 +364,8 @@ size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_
 		if (offset) {
 			ret = lseek(fd, offset, SEEK_SET);
 			if (ret < 0) {
-				fprintf(stderr, "ERR: seek off 0x%lx failed %zd.\n", offset, ret);
-				return -EIO;
+				fprintf(stderr, "ERR %d: seek off 0x%lx failed\n", errno, offset);
+				return -errno;
 			}
 			if (ret != offset) {
 				fprintf(stderr, "ERR: seek off 0x%lx != 0x%lx.\n", ret, offset);
@@ -372,8 +376,8 @@ size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_
 		/* write data to device file from memory buffer */
 		ret = write(fd, buf, bytes);
 		if (ret < 0) {
-			fprintf(stderr, "ERR: W off 0x%lx, 0x%lx failed %zd.\n", offset, bytes, ret);
-			return -EIO;
+			fprintf(stderr, "ERR %d: W off 0x%lx, 0x%lx failed %zd.\n", errno, offset, bytes);
+			return -errno;
 		}
 		if (ret != bytes) {
 			fprintf(stderr, "ERR: W off 0x%lx, 0x%lx != 0x%lx.\n", offset, ret, bytes);
