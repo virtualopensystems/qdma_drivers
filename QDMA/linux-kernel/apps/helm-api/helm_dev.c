@@ -23,15 +23,20 @@
 #include "qdma_queues.h"
 
 typedef struct {
+	uint64_t __sign;
 	uint64_t base;
 	struct queue_info *q_info;
 } helm_dev_t;
 
 #define REG_SIZE	(4) //size of registers in bytes
+#define HELM_MAGIC	((uint64_t) 0xC001C0DEFEEDC0DEULL)
 
 // Check device pointer, return -EINVAL if invalid
 #define CHECK_DEV_PTR(dev) do { \
-    if ((dev == NULL) || (((helm_dev_t*)dev)->q_info == NULL)) { \
+    if ((dev == NULL) || \
+			(((helm_dev_t*)dev)->q_info == NULL) || \
+			(helm->__sign != HELM_MAGIC) ) \
+	{ \
         fprintf(stderr, "ERR: invalid dev pointer\n"); \
         return -EINVAL; \
     } \
@@ -60,6 +65,8 @@ int helm_dev_destroy(void* dev)
 	helm_dev_t *helm = (helm_dev_t*) dev;
 
 	CHECK_DEV_PTR(dev);
+
+	helm->__sign = 0;
 
 	debug_print("In %s: destroy queue for helm dev\n", __func__);
 	(void) queue_destroy(helm->q_info);
@@ -103,6 +110,8 @@ void* helm_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int
 		helm_dev_destroy((void*)helm);
 		return NULL;
 	}
+
+	helm->__sign = HELM_MAGIC;
 
 	return (void*) helm;
 }
