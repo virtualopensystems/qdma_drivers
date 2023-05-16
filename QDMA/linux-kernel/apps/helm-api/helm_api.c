@@ -31,11 +31,11 @@
 #define KERN_Q_START		(0)
 #define VF_NUM_MAX			(252) // Max num of VF allowed by QDMA
 
-/* helm4.bit */
-#define KERN_BASE_ADDR		(0x10000000)
-#define KERN_VF_INCR		(0x00010000)
-#define MEM_IN_BASE_ADDR	(0x00000000) //4MB total
-#define MEM_OUT_BASE_ADDR	(0x002A0000) //1/3 only for output
+/* helmXHBM.bit */
+#define MEM_IN_BASE_ADDR	(0x0000000000000000ULL) // input @ 0
+#define MEM_OUT_BASE_ADDR	(0x0000000100000000ULL) // output @ 4GB offset
+#define KERN_BASE_ADDR		(0x0000000400000000ULL) // kernels starts after 16 GB of HBM
+#define KERN_VF_INCR		(0x0000000000010000ULL) // kernels offset
 
 #define ROUND_UP(num, pow)	( (num + (pow-1)) & (~(pow-1)) )
 #define MEM_IN_SIZE			( (121+1331+1331)*(sizeof(double)) )
