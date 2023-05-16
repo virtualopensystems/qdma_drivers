@@ -222,7 +222,6 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 {
 	int ret;
 	struct queue_info *q_info;
-	struct xcmd_info xcmd;
 	char *q_name;
 
 	if (!pq_info) {
@@ -268,7 +267,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 	/* Create queue name from queue info */
 	q_name = calloc(1, QDMA_Q_NAME_LEN);
 	if (q_name == NULL) {
-		fprintf(stderr, "ERR: Cannot allocate %ld bytes\n", QDMA_Q_NAME_LEN);
+		fprintf(stderr, "ERR: Cannot allocate %d bytes\n", QDMA_Q_NAME_LEN);
 		return -ENOMEM;
 	}
 	snprintf(q_name, QDMA_Q_NAME_LEN, "/dev/qdma%s%05x-MM-%d",
@@ -322,7 +321,7 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t
 		/* read data from device file into memory buffer */
 		ret = read(fd, buf, bytes);
 		if (ret < 0) {
-			fprintf(stderr, "ERR %d: R off 0x%lx, 0x%lx failed %zd.\n", errno, offset, bytes);
+			fprintf(stderr, "ERR %d: R off 0x%lx, 0x%lx failed.\n", errno, offset, bytes);
 			return -errno;
 		}
 		if (ret != bytes) {
@@ -376,7 +375,7 @@ size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_
 		/* write data to device file from memory buffer */
 		ret = write(fd, buf, bytes);
 		if (ret < 0) {
-			fprintf(stderr, "ERR %d: W off 0x%lx, 0x%lx failed %zd.\n", errno, offset, bytes);
+			fprintf(stderr, "ERR %d: W off 0x%lx, 0x%lx failed.\n", errno, offset, bytes);
 			return -errno;
 		}
 		if (ret != bytes) {

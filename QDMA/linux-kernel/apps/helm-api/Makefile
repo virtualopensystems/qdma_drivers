@@ -15,7 +15,7 @@ CFLAGS += -g
 CFLAGS += -I. -I../include -I../dma-utils
 CFLAGS += $(EXTRA_FLAGS)
 ifeq ($(DEBUG),1)
-  CFLAGS += -g -DDEBUG
+  CFLAGS += -g -DDEBUG -Wall
 endif
 
 HELM-API = helm-api
