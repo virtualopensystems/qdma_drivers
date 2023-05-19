@@ -33,7 +33,12 @@
 
 /* helmXHBM.bit */
 #define MEM_IN_BASE_ADDR	(0x0000000000000000ULL) // input @ 0
+#ifdef HBM16GB //up to 16 GB HBM memory on u55c
+#pragma message "HBM set to 16 GB"
+#define MEM_OUT_BASE_ADDR	(0x0000000200000000ULL) // output @ 8GB offset
+#else
 #define MEM_OUT_BASE_ADDR	(0x0000000100000000ULL) // output @ 4GB offset
+#endif
 #define KERN_BASE_ADDR		(0x0000000400000000ULL) // kernels starts after 16 GB of HBM
 #define KERN_VF_INCR		(0x0000000000010000ULL) // kernels offset
 
@@ -98,7 +103,7 @@ static int mem_read_to_buffer(uint64_t addr, uint64_t size, char** buffer)
 		return -ENOMEM;
 	}
 
-	info_print("Reading 0x%02lx (%ld) bytes @ 0x%08lx\n", size, size, addr);
+	info_print("Reading 0x%02lx (%ld) bytes @ 0x%016lx\n", size, size, addr);
 	size_t rsize = queue_read(q_info, *buffer, size, addr);
 
 	if (rsize != size){
@@ -129,7 +134,7 @@ static int mem_write_from_buffer(uint64_t addr, char* buffer, size_t size)
 		return ret;
 	}
 
-	info_print("Writing 0x%02lx (%ld) bytes @ 0x%08lx\n", size, size, addr);
+	info_print("Writing 0x%02lx (%ld) bytes @ 0x%016lx\n", size, size, addr);
 	size_t wsize = queue_write(q_info, buffer, size, addr);
 
 	if (wsize != size) {
@@ -301,12 +306,12 @@ int main(int argc, char *argv[])
 		kern_pci_id = bdf & 0x0F;
 	}
 
-	info_print("    MEM IN   0x%08lx - 0x%08lx\n", mem_in_addr, mem_in_addr+MEM_IN_SIZE);
-	info_print("    MEM OUT  0x%08lx - 0x%08lx\n", mem_out_addr, mem_out_addr+MEM_OUT_SIZE);
+	info_print("    MEM IN   0x%016lx - 0x%016lx\n", mem_in_addr, mem_in_addr+MEM_IN_SIZE);
+	info_print("    MEM OUT  0x%016lx - 0x%016lx\n", mem_out_addr, mem_out_addr+MEM_OUT_SIZE);
 	info_print("    Kern PCI %04x:%02x.%01x\n\n", kern_pci_bus, kern_pci_dev, kern_pci_id);
 
 
-	info_print("Initializing kernel @ 0x%08lx\n", kern_addr);
+	info_print("Initializing kernel @ 0x%016lx\n", kern_addr);
 
 
 	kern = helm_dev_init(kern_addr, kern_pci_bus, kern_pci_dev,
@@ -318,11 +323,11 @@ int main(int argc, char *argv[])
 	}
 	info_print("Kernel initialized correctly!\n");
 
-	info_print("Setting MEM_IN addr to  0x%08lx\n", mem_in_addr);
+	info_print("Setting MEM_IN addr to  0x%016lx\n", mem_in_addr);
 	ret = helm_set_in(kern, mem_in_addr);
 	ERR_CHECK(ret);
 
-	info_print("Setting MEM_OUT addr to 0x%08lx\n", mem_out_addr);
+	info_print("Setting MEM_OUT addr to 0x%016lx\n", mem_out_addr);
 	ret = helm_set_out(kern, mem_out_addr);
 	ERR_CHECK(ret);
 

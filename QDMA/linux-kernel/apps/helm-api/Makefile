@@ -17,6 +17,9 @@ CFLAGS += $(EXTRA_FLAGS)
 ifeq ($(DEBUG),1)
   CFLAGS += -g -DDEBUG -Wall
 endif
+ifeq ($(HBM16GB),1)
+  CFLAGS += -DHBM16GB
+endif
 
 HELM-API = helm-api
 DMA-UTILS_OBJS := $(patsubst %.c,%.o,$(wildcard ../dma-utils/*.c))

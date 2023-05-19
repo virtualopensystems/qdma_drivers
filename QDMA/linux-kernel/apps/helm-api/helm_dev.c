@@ -102,7 +102,7 @@ void* helm_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int
 	}
 
 	helm->base = dev_addr;
-	debug_print("In %s: setup done, base addr 0x%08lx\n", __func__, helm->base);
+	debug_print("In %s: setup done, base addr 0x%016lx\n", __func__, helm->base);
 
 	// Test if kernel control register is readable
 	if (helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL)) {
@@ -420,7 +420,7 @@ int helm_reg_dump(void *dev)
 
 	CHECK_DEV_PTR(dev);
 
-	debug_print("\nIn %s: Dumping device registers @ 0x%08lx\n", __func__, helm->base);
+	debug_print("\nIn %s: Dumping device registers @ 0x%016lx\n", __func__, helm->base);
 
 	(void) helm_reg_read(helm, &data, HELM_CTRL_ADDR_CTRL);
 	debug_print("  0x%02x CTRL: 0x%08x ", HELM_CTRL_ADDR_CTRL, data);
