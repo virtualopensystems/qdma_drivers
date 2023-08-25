@@ -35,7 +35,7 @@ typedef struct {
 #define CHECK_DEV_PTR(dev) do { \
     if ((dev == NULL) || \
 			(((helm_dev_t*)dev)->q_info == NULL) || \
-			(helm->__sign != HELM_MAGIC) ) \
+			(((helm_dev_t*)dev)->__sign != HELM_MAGIC) ) \
 	{ \
         fprintf(stderr, "ERR: invalid dev pointer\n"); \
         return -EINVAL; \
