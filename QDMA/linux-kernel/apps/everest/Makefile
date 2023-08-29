@@ -12,7 +12,7 @@ CC ?= gcc
 
 CFLAGS += -g
 #CFLAGS += -O2 -fno-inline -Wall -Wstrict-prototypes
-CFLAGS += -I. -I../include -I../dma-utils
+CFLAGS += -I. -I../include -I../dma-utils -I./qdma
 CFLAGS += $(EXTRA_FLAGS)
 ifeq ($(DEBUG),1)
   CFLAGS += -g -DDEBUG -Wall
@@ -21,23 +21,27 @@ ifeq ($(HBM16GB),1)
   CFLAGS += -DHBM16GB
 endif
 
-HELM-API = helm-api
 DMA-UTILS_OBJS := $(patsubst %.c,%.o,$(wildcard ../dma-utils/*.c))
-HELM-API_OBJS += $(patsubst %.c,%.o,$(wildcard *.c))
-HELM-API_OBJS += $(DMA-UTILS_OBJS)
+QDMA_OBJS := $(patsubst %.c,%.o,$(wildcard ./qdma/*.c))
+
+HELM-TEST = helm-test
+HELM-TEST_OBJS += $(DMA-UTILS_OBJS)
+HELM-TEST_OBJS += $(QDMA_OBJS)
+HELM-TEST_OBJS += $(patsubst %.c,%.o,$(wildcard ./helm/*.c))
 
 ifneq ($(CROSS_COMPILE_FLAG),)
 	CC=$(CROSS_COMPILE_FLAG)gcc
 endif
 
-all: clean helm-api
+all: clean helm-test
 
-helm-api: $(HELM-API_OBJS)
-	$(CC) -pthread -lrt  $^ -o $(HELM-API) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
+
+helm-test: $(HELM-TEST_OBJS)
+	$(CC) -pthread -lrt  $^ -o $(HELM-TEST) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -std=c99 -o $@ $< -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE -D_AIO_AIX_SOURCE
 
 clean:
 	@rm -f *.o */*.o ../dma-utils/*.o
-	rm -rf *.o *.bin helm-api
+	rm -rf *.o *.bin $(HELM-TEST)

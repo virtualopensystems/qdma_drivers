@@ -3,7 +3,7 @@
  * Reproduction and communication of this document is strictly prohibited
  * unless specifically authorized in writing by Virtual Open Systems.
  * ****************************************************************************
- * File Name   : helm_api.c
+ * File Name   : helm_test.c
  * Author	   : STEFANO CIRICI <s.cirici@virtualopensystems.com>
  * Description :
  *
@@ -223,6 +223,7 @@ int read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_si
 
 static void print_usage(char*argv[])
 {
+	printf("EVEREST Helmholtz kernel test\n");
 	printf("Usage: %s [OPTION]...\n", argv[0]);
 	printf("  -i FILE        specify input FILE\n");
 	printf("  -o FILE        specify output FILE\n");

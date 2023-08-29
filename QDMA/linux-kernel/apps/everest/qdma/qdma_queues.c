@@ -17,8 +17,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "qdma_nl.h"
-#include "dmautils.h"
+#include "../../include/qdma_nl.h"
+#include "../../dma-utils/dmautils.h"
 #include "qdma_queues.h"
 
 #define QCONF_TO_BDF(qconf) (((unsigned int)qconf->pci_bus << 12) | \
