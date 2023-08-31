@@ -29,7 +29,7 @@ typedef struct {
 } helm_dev_t;
 
 #define REG_SIZE	(4) //size of registers in bytes
-#define HELM_MAGIC	((uint64_t) 0xC001C0DEFEEDC0DEULL)
+#define HELM_MAGIC	((uint64_t) 0xC001C0DE48656C6DULL)
 
 // Check device pointer, return -EINVAL if invalid
 #define CHECK_DEV_PTR(dev) do { \
