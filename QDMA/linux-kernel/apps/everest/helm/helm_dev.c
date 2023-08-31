@@ -342,7 +342,7 @@ int helm_get_numtimes(void *dev, uint32_t *data)
 
 	CHECK_DEV_PTR(dev);
 
-	if (helm_reg_read(helm, data, HELM_CTRL_ADDR_OUT_DATA)) {
+	if (helm_reg_read(helm, data, HELM_CTRL_ADDR_NUM_TIMES)) {
 		return -EIO;
 	}
 	debug_print("In %s: NUM_TIMES reg is 0x%08x\n", __func__, *data);
