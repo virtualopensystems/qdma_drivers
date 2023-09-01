@@ -29,19 +29,31 @@ HELM-TEST_OBJS += $(DMA-UTILS_OBJS)
 HELM-TEST_OBJS += $(QDMA_OBJS)
 HELM-TEST_OBJS += $(patsubst %.c,%.o,$(wildcard ./helm/*.c))
 
+PTDR-TEST = ptdr-test
+PTDR-TEST_OBJS += $(DMA-UTILS_OBJS)
+PTDR-TEST_OBJS += $(QDMA_OBJS)
+PTDR-TEST_OBJS += $(patsubst %.c,%.o,$(wildcard ./ptdr/*.c))
+
 ifneq ($(CROSS_COMPILE_FLAG),)
 	CC=$(CROSS_COMPILE_FLAG)gcc
 endif
 
-all: clean helm-test
+.PHONY: all
+all: clean helm-test ptdr-test
 
-
+.PHONY: helm-test
 helm-test: $(HELM-TEST_OBJS)
 	$(CC) -pthread -lrt  $^ -o $(HELM-TEST) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
+
+.PHONY: ptdr-test
+ptdr-test: $(PTDR-TEST_OBJS)
+	$(CC) -pthread -lrt  $^ -o $(PTDR-TEST) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -std=c99 -o $@ $< -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE -D_AIO_AIX_SOURCE
 
+.PHONY: clean
 clean:
 	@rm -f *.o */*.o ../dma-utils/*.o
-	rm -rf *.o *.bin $(HELM-TEST)
+	rm -rf *.o *.bin $(HELM-TEST) $(PTDR-TEST)
+

@@ -25,7 +25,7 @@ dma-to-device_dir = $(srcdir)/dma-to-device
 dma-xfer_dir = $(srcdir)/dma-xfer
 dma-perf_dir = $(srcdir)/dma-perf
 dma-latency_dir = $(srcdir)/dma-latency
-helm-test_dir = $(srcdir)/everest
+everest_dir = $(srcdir)/everest
 
 export topdir
 export bin_dir
@@ -88,10 +88,18 @@ helm-test:
 	@echo "####  helm-test          ####";
 	@echo "#############################";
 	$(MAKE) -C everest helm-test
-	@cp -f $(helm-test_dir)/helm-test $(bin_dir)	
+	@cp -f $(everest_dir)/helm-test $(bin_dir)	
+
+.PHONY: ptdr-test
+ptdr-test:
+	@echo "#############################";
+	@echo "####  ptdr-test          ####";
+	@echo "#############################";
+	$(MAKE) -C everest ptdr-test
+	@cp -f $(everest_dir)/ptdr-test $(bin_dir)	
 
 .PHONY: apps
-apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency helm-test
+apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency helm-test ptdr_test
 
 
 .PHONY: clean
@@ -124,7 +132,7 @@ clean:
 	@echo "####  everest            ####";
 	@echo "#############################";
 	$(MAKE) -C everest clean;
-	@rm -f $(bin_dir)/dma-ctl $(bin_dir)/dma-from-device $(bin_dir)/dma-to-device $(bin_dir)/dma-xfer $(bin_dir)/dma-perf $(bin_dir)/dma-latency $(bin_dir)/helm-test
+	@rm -f $(bin_dir)/dma-ctl $(bin_dir)/dma-from-device $(bin_dir)/dma-to-device $(bin_dir)/dma-xfer $(bin_dir)/dma-perf $(bin_dir)/dma-latency $(bin_dir)/helm-test $(bin_dir)/ptdr_test
 	@for dir in $(ALLSUBDIRS); do \
 	   echo "#######################";\
 	   printf "####  %-8s%5s####\n" $$dir;\

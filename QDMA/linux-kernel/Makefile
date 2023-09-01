@@ -133,6 +133,7 @@ install-apps:
 	@install -v -m 755 bin/dma-perf $(apps_install_path)
 	@install -v -m 755 bin/dma-latency $(apps_install_path)
 	@install -v -m 755 bin/helm-test $(apps_install_path)
+	@install -v -m 755 bin/ptdr-test $(apps_install_path)
 	@echo "MAN PAGES:"
 	@mkdir -p -m 755 $(docs_install_path)
 	@install -v -m 644 docs/dma-ctl.8.gz $(docs_install_path)
@@ -159,6 +160,7 @@ uninstall-apps:
 	@/bin/rm -f $(apps_install_path)/dma-perf
 	@/bin/rm -f $(apps_install_path)/dma-latency
 	@/bin/rm -f $(apps_install_path)/helm-test
+	@/bin/rm -f $(apps_install_path)/ptdr-test
 
 .PHONY: uninstall-dev
 uninstall-dev:
