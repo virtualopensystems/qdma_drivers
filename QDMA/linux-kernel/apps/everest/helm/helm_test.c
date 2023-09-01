@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include <signal.h>
 
 #include "dmautils.h"
 #include "qdma_queues.h"
@@ -67,6 +68,7 @@
 		} \
 	} while (0)
 
+static void * kern;
 static int quiet_flag = 0;
 
 static uint64_t kern_addr		= KERN_BASE_ADDR;
@@ -77,6 +79,25 @@ static int kern_pci_dev			= KERN_PCI_DEV;
 static int kern_pci_id			= KERN_FUN_ID;
 static int is_vf				= KERN_IS_VF;
 
+
+void intHandler(int sig) {
+	char c;
+	int ret;
+
+	signal(sig, SIG_IGN);
+
+	printf("\nDo you really want to quit? [y/n] ");
+	c = getchar();
+	if (c == 'y' || c == 'Y') {
+		if (kern != NULL) {
+			info_print("\nDestroying kernel\n");
+			ret = helm_dev_destroy(kern);
+			ERR_CHECK(ret);
+		}
+		exit(0);
+	}
+	signal(sig, intHandler);
+}
 
 static int mem_read_to_buffer(uint64_t addr, uint64_t size, char** buffer)
 {
@@ -238,12 +259,13 @@ int main(int argc, char *argv[])
 {
 	int ret, opt;
 	int count;
-	void * kern;
 	struct timespec ts = {0, 1000*1000}; //1msec
 	char *input_filename = NULL;
 	char *output_filename = NULL;
 	int vf_num = -1;
 	uint64_t bdf = 0xFFFFFFFF;
+
+	signal(SIGINT, intHandler); // Register interrupt handler on CTRL-c
 
 	// Parse command line
 	while ((opt = getopt(argc, argv, "hi:o:v:d:q")) != -1) {
