@@ -509,6 +509,61 @@ int ptdr_get_interruptstatus(void *dev, uint32_t *data)
 	return 0;
 }
 
+int ptdr_route_parse(char *buff, size_t buff_size, ptdr_route_t *route, size_t *route_size)
+{
+	uint64_t count;
+	char* buff_ptr = buff;
+
+	debug_print("In %s: Reading buffer size %ld\n", __func__, buff_size);
+
+	route->frequency_seconds = * (double*) buff_ptr;
+	buff_ptr += sizeof(double);
+	debug_print("  Frequency %f\n", route->frequency_seconds);
+
+	count = * (uint64_t*) buff_ptr;
+	buff_ptr += sizeof(uint64_t);
+	debug_print("  Segments 0x%08lx %ld\n", count, count);
+
+	if (count > MAX_SIZE_SEGMENTS) {
+		fprintf(stderr, "ERR: Invalid Segments %ld > MAX_SIZE_SEGMENTS %lld\n", count, MAX_SIZE_SEGMENTS);
+		return -EINVAL;
+	}
+
+	for (int i = 0; i < count; i++) {
+		// Ignore the ID, it's not needed to be loaded into memory
+		uint64_t id_num;
+		id_num = * (uint64_t*) buff_ptr;
+		buff_ptr += sizeof(uint64_t);
+		//info_print("Ignoring ID_num 0x%08lx %ld\n", id_num, id_num);
+		buff_ptr += id_num;
+
+		route->segments[i].segment.length = * (double*) buff_ptr;
+		buff_ptr += sizeof(double);
+
+		route->segments[i].segment.speed = * (double*) buff_ptr;
+		buff_ptr += sizeof(double);
+
+		for (int j = 0; j < PROFILES_NUM; j++) {
+			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
+				route->segments[i].profiles[j].values[k] = * (double*) buff_ptr;
+				buff_ptr += sizeof(double);
+			}
+			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
+				route->segments[i].profiles[j].cum_probs[k] = * (double*) buff_ptr;
+				buff_ptr += sizeof(double);
+			}
+		}
+	}
+
+	*route_size = buff_ptr-buff;
+	if ( *route_size > buff_size) {
+		fprintf(stderr, "ERR: Invalid route_size %ld > buff_size %ld\n", *route_size, buff_size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 // For debug only
 #ifdef DEBUG
 int ptdr_reg_dump(void *dev)
