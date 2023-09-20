@@ -50,6 +50,60 @@ typedef struct {
 #define debug_print(format, ...)	do { } while (0)
 #endif
 
+#ifndef MAX_SIZE_ID
+#define MAX_SIZE_ID 32ULL
+#endif
+#ifndef MAX_SIZE_SEGMENTS
+#define MAX_SIZE_SEGMENTS 160ULL
+#endif
+#ifndef PROFILES_NUM
+#define PROFILES_NUM 672ULL
+#endif
+#ifndef PROFILE_VAL_NUM
+#define PROFILE_VAL_NUM 4ULL
+#endif
+
+// Probability profile for a single segment.
+// This profile is sampled to determine the Level of Service (how easy is to go through the segment).
+struct segment_time_profile {
+	double values[PROFILE_VAL_NUM];
+	double cum_probs[PROFILE_VAL_NUM];
+};
+
+// A single segment of a road.
+struct segment {
+#ifndef STATIC
+	char id[MAX_SIZE_ID];
+#endif
+	double length; // How precise is distance? mm, cm, meters? What is the maximum length of a segment?
+	double speed; // How precise is speed? mm/s, cm/s, m/s?
+};
+
+// Wrapper struct that contains segment data and its probability profile.
+struct enriched_segment {
+	struct segment segment;
+	struct segment_time_profile profiles[PROFILES_NUM];
+};
+
+// Single route which will be sampled using Monte Carlo to determine how long would it take to go through it.
+typedef struct {
+	// Duration of an atomic movement of a car on a segment.
+	double frequency_seconds;
+	struct enriched_segment segments[MAX_SIZE_SEGMENTS];
+} ptdr_route_t;
+
+typedef struct {
+	// Index of a specific segment on which the car is currently located.
+	unsigned long long segment_index;
+	// Number in the range [0.0, 1.0] which determines how far is the car along the segment.
+	double progress; // How precise should this be? Could this be converted to int? Like in [0,100] range?
+} ptdr_routepos_t;
+
+//typedef unsigned long long ptdr_datetime_t; //unused
+//typedef unsigned long long ptdr_duration_t; //unused
+//typedef const unsigned long long ptdr_seed_t; //unused
+
+
 static inline int ptdr_reg_read(ptdr_dev_t *dev, uint32_t *data, uint16_t reg)
 {
 	return queue_read(dev->q_info, data, (uint64_t) REG_SIZE, (uint64_t) dev->base + reg) != REG_SIZE;
@@ -116,6 +170,132 @@ void* ptdr_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int
 	return (void*) ptdr;
 }
 
+static int ptdr_read_route_from_file(char *filename, ptdr_route_t *route)
+{
+	uint64_t count;
+	size_t rsize = 0;
+	FILE* file = fopen(filename, "rb");
+
+	if (file == NULL) {
+		fprintf(stderr, "ERR %d: Failed opening file \"%s\"\n", errno, filename);
+		return -ENOENT;
+	}
+
+	if ((rsize = fread(&route->frequency_seconds, 1, sizeof(double), file)) != sizeof(double)) goto read_err;
+	debug_print("  Frequency %f\n", route->frequency_seconds);
+
+	if ((rsize = fread(&count, 1, sizeof(uint64_t), file)) != sizeof(uint64_t)) goto read_err;
+	debug_print("  Segments 0x%08lx %ld\n", count, count);
+
+	if (count > MAX_SIZE_SEGMENTS) {
+		fprintf(stderr, "ERR: Invalid Segments %ld > MAX_SIZE_SEGMENTS %lld\n", count, MAX_SIZE_SEGMENTS);
+		fclose(file);
+		return -EINVAL;
+	}
+
+	// Iterate on each segment
+	for (int i = 0; i < count; i++) {
+
+		// Ignore the ID, it is not needed to be loaded into memory
+		uint64_t id_num;
+		if ((rsize = fread(&id_num, 1, sizeof(uint64_t), file)) != sizeof(uint64_t)) goto read_err;
+		//debug_print("Ignoring ID_num 0x%08lx %ld\n", id_num, id_num);
+		if (fseek(file, id_num, SEEK_CUR) != 0) {
+			fprintf(stderr, "ERR %d: Failed fseek on file \"%s\"\n", errno, filename);
+			fclose(file);
+			return -EIO;
+		}
+
+		if ((rsize = fread(&route->segments[i].segment.length, 1, sizeof(double), file)) != sizeof(double)) goto read_err;
+
+		if ((rsize = fread(&route->segments[i].segment.speed, 1, sizeof(double), file)) != sizeof(double)) goto read_err;
+
+		for (int j = 0; j < PROFILES_NUM; j++) {
+			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
+				if ((rsize = fread(&route->segments[i].profiles[j].values[k], 1, sizeof(double), file)) != sizeof(double)) goto read_err;
+			}
+			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
+				if ((rsize = fread(&route->segments[i].profiles[j].cum_probs[k], 1, sizeof(double), file)) != sizeof(double)) goto read_err;
+			}
+		}
+	}
+
+	return 0;
+
+read_err:
+	fprintf(stderr, "Error while reading, read %ld bytes\n", rsize);
+	fclose(file);
+	return -EIO;
+}
+
+
+int ptdr_dev_conf(void* dev, char* route_file, unsigned long long *duration_v, size_t duration_size,
+    unsigned long long routepos_index, double routepos_progress, unsigned long long departure_time,
+	unsigned long long seed, void ** data, size_t *data_size)
+{
+	int ret = 0;
+
+	ptdr_route_t route;
+    ptdr_routepos_t start_pos = {routepos_index, routepos_progress};
+
+    size_t total_size = duration_size + sizeof(route) + sizeof(start_pos) + sizeof(departure_time) + sizeof(seed);
+
+    unsigned int durations_ptr = 0;
+    unsigned int route_ptr = durations_ptr + duration_size;
+    unsigned int position_ptr = route_ptr + sizeof(route);
+    unsigned int departure_ptr = position_ptr + sizeof(start_pos);
+    unsigned int seed_ptr = departure_ptr + sizeof(departure_time);
+
+
+	ret = ptdr_read_route_from_file(route_file, &route);
+	if (ret != 0) {
+		fprintf(stderr, "ERR %d reading route from file \"%s\"\n", ret, route_file);
+		return ret;
+	}
+
+    debug_print("dur_size %ld\n", duration_size);
+    debug_print("route_size %ld\n", sizeof(route));
+    debug_print("pos_size %ld\n", sizeof(start_pos));
+    debug_print("dep_size %ld\n", sizeof(departure_time));
+    debug_print("seed_size %ld\n", sizeof(seed));
+    debug_print("total_size %ld\n\n", total_size);
+
+    // Allocate space for the total amount
+    char* mem_dat = (char*)malloc(total_size);
+	if (mem_dat == NULL) {
+		fprintf(stderr, "Error allocating %ld bytes\n", total_size);
+		return -ENOMEM;
+	}
+
+    // Copy data into this unified space
+    memcpy(&mem_dat[durations_ptr], (const char*) (&duration_v),         duration_size);
+    memcpy(&mem_dat[route_ptr],     (const char*) (&route),              sizeof(route));
+    memcpy(&mem_dat[position_ptr],  (const char*) (&start_pos),          sizeof(start_pos));
+    memcpy(&mem_dat[departure_ptr], (const char*) (&departure_time),     sizeof(departure_time));
+    memcpy(&mem_dat[seed_ptr],      (const char*) (&seed),               sizeof(seed));
+
+
+	debug_print("Setting duration ptr to %u\n", durations_ptr);
+	if ((ret = ptdr_set_durations(dev, durations_ptr)) != 0) return ret;
+
+	debug_print("Setting route ptr to %u\n", route_ptr);
+	if ((ret = ptdr_set_route(dev, route_ptr)) != 0) return ret;
+
+	debug_print("Setting position ptr to %u\n", position_ptr);
+	if ((ret = ptdr_set_position(dev, position_ptr)) != 0) return ret;
+
+	debug_print("Setting departure ptr to %u\n", departure_ptr);
+	if ((ret = ptdr_set_departure(dev, departure_ptr)) != 0) return ret;
+
+	debug_print("Setting seed ptr to %u\n", seed_ptr);
+	if ((ret = ptdr_set_seed(dev, seed_ptr)) != 0) return ret;
+
+
+	*data = (void*) mem_dat;
+	*data_size = total_size;
+
+	return 0;
+}
 
 int ptdr_start(void *dev)
 {
@@ -156,8 +336,8 @@ int ptdr_isdone(void *dev)
 	if (ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
-	debug_print("In %s: CTRL reg is 0x%08x, done is %d\n",
-		__func__, data, (data >> 1) & 0x01);
+	//debug_print("In %s: CTRL reg is 0x%08x, done is %d\n",
+	//	__func__, data, (data >> 1) & 0x01);
 
 	// ap_done is BIT(1)
 	return (data >> 1) & 0x01;
@@ -173,8 +353,8 @@ int ptdr_isidle(void *dev)
 	if (ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
-	debug_print("In %s: CTRL reg is 0x%08x, idle is %d\n",
-		__func__, data, (data >> 2) & 0x01);
+	//debug_print("In %s: CTRL reg is 0x%08x, idle is %d\n",
+	//	__func__, data, (data >> 2) & 0x01);
 
 	// ap_idle is BIT(2)
 	return (data >> 2) & 0x01;
@@ -190,8 +370,8 @@ int ptdr_isready(void *dev)
 	if (ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
-	debug_print("In %s: CTRL reg is 0x%08x, ready is %d\n",
-		__func__, data, (data >> 3) & 0x01);
+	//debug_print("In %s: CTRL reg is 0x%08x, ready is %d\n",
+	//	__func__, data, (data >> 3) & 0x01);
 
 	// Do not check ready bit (BIT 3), check ap_start == 0 to see if the kernel is ready for next input
 	return !(data & 0x01);
@@ -509,61 +689,6 @@ int ptdr_get_interruptstatus(void *dev, uint32_t *data)
 	return 0;
 }
 
-int ptdr_route_parse(char *buff, size_t buff_size, ptdr_route_t *route, size_t *route_size)
-{
-	uint64_t count;
-	char* buff_ptr = buff;
-
-	debug_print("In %s: Reading buffer size %ld\n", __func__, buff_size);
-
-	route->frequency_seconds = * (double*) buff_ptr;
-	buff_ptr += sizeof(double);
-	debug_print("  Frequency %f\n", route->frequency_seconds);
-
-	count = * (uint64_t*) buff_ptr;
-	buff_ptr += sizeof(uint64_t);
-	debug_print("  Segments 0x%08lx %ld\n", count, count);
-
-	if (count > MAX_SIZE_SEGMENTS) {
-		fprintf(stderr, "ERR: Invalid Segments %ld > MAX_SIZE_SEGMENTS %lld\n", count, MAX_SIZE_SEGMENTS);
-		return -EINVAL;
-	}
-
-	for (int i = 0; i < count; i++) {
-		// Ignore the ID, it's not needed to be loaded into memory
-		uint64_t id_num;
-		id_num = * (uint64_t*) buff_ptr;
-		buff_ptr += sizeof(uint64_t);
-		//info_print("Ignoring ID_num 0x%08lx %ld\n", id_num, id_num);
-		buff_ptr += id_num;
-
-		route->segments[i].segment.length = * (double*) buff_ptr;
-		buff_ptr += sizeof(double);
-
-		route->segments[i].segment.speed = * (double*) buff_ptr;
-		buff_ptr += sizeof(double);
-
-		for (int j = 0; j < PROFILES_NUM; j++) {
-			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
-				route->segments[i].profiles[j].values[k] = * (double*) buff_ptr;
-				buff_ptr += sizeof(double);
-			}
-			for(int k = 0; k < PROFILE_VAL_NUM; k++) {
-				route->segments[i].profiles[j].cum_probs[k] = * (double*) buff_ptr;
-				buff_ptr += sizeof(double);
-			}
-		}
-	}
-
-	*route_size = buff_ptr-buff;
-	if ( *route_size > buff_size) {
-		fprintf(stderr, "ERR: Invalid route_size %ld > buff_size %ld\n", *route_size, buff_size);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 // For debug only
 #ifdef DEBUG
 int ptdr_reg_dump(void *dev)
@@ -575,42 +700,34 @@ int ptdr_reg_dump(void *dev)
 
 	debug_print("\nIn %s: Dumping device registers @ 0x%016lx\n", __func__, ptdr->base);
 
-	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL);
-	debug_print("  0x%02x CTRL: 0x%08x ", PTDR_CTRL_ADDR_CTRL, data);
-	debug_print(" start %d", (data >> 0) & 0x01);
-	debug_print(" done %d", (data >> 1) & 0x01);
-	debug_print(" idle %d", (data >> 2) & 0x01);
-	debug_print(" ready %d", (data >> 3) & 0x01);
-	debug_print(" cont %d", (data >> 4) & 0x01);
-	debug_print(" rest %d", (data >> 7) & 0x01);
-	debug_print(" inter %d\n", (data >> 9) & 0x01);
+	(void) ptdr_ctrl_dump(dev);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_GIE);
-	debug_print("  0x%02x GIE:  0x%08x\n", PTDR_CTRL_ADDR_GIE, data);
+	debug_print("  0x%02x GIE:    0x%08x\n", PTDR_CTRL_ADDR_GIE, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_IER);
-	debug_print("  0x%02x IER:  0x%08x\n", PTDR_CTRL_ADDR_IER, data);
+	debug_print("  0x%02x IER:    0x%08x\n", PTDR_CTRL_ADDR_IER, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_ISR);
-	debug_print("  0x%02x ISR:  0x%08x\n", PTDR_CTRL_ADDR_ISR, data);
+	debug_print("  0x%02x ISR:    0x%08x\n", PTDR_CTRL_ADDR_ISR, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_NUM_TIMES);
-	debug_print("  0x%02x NUM:  0x%08x\n\n", PTDR_CTRL_ADDR_NUM_TIMES, data);
+	debug_print("  0x%02x NUM:    0x%08x\n", PTDR_CTRL_ADDR_NUM_TIMES, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_DUR);
-	debug_print("  0x%02x DUR:  0x%08x\n\n", PTDR_CTRL_ADDR_DUR, data);
+	debug_print("  0x%02x DUR:    0x%08x\n", PTDR_CTRL_ADDR_DUR, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_ROUTE);
-	debug_print("  0x%02x ROUTE:  0x%08x\n\n", PTDR_CTRL_ADDR_ROUTE, data);
+	debug_print("  0x%02x ROUTE:  0x%08x\n", PTDR_CTRL_ADDR_ROUTE, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_POS);
-	debug_print("  0x%02x POS:  0x%08x\n\n", PTDR_CTRL_ADDR_POS, data);
+	debug_print("  0x%02x POS:    0x%08x\n", PTDR_CTRL_ADDR_POS, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_DEP);
-	debug_print("  0x%02x DEP:  0x%08x\n\n", PTDR_CTRL_ADDR_DEP, data);
+	debug_print("  0x%02x DEP:    0x%08x\n", PTDR_CTRL_ADDR_DEP, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_SEED);
-	debug_print("  0x%02x SEED:  0x%08x\n\n", PTDR_CTRL_ADDR_SEED, data);
+	debug_print("  0x%02x SEED:   0x%08x\n", PTDR_CTRL_ADDR_SEED, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_BASE);
 	debug_print("  0x%02x BASE0:  0x%08x\n", PTDR_CTRL_ADDR_BASE, data);

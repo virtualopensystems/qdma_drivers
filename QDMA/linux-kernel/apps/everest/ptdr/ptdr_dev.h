@@ -19,64 +19,13 @@
 #define PTDR_AP_DONE_INTERRUPT 		(1 << 0)
 #define PTDR_AP_READY_INTERRUPT 	(1 << 1)
 
-#ifndef MAX_SIZE_ID
-#define MAX_SIZE_ID 32ULL
-#endif
-
-#ifndef MAX_SIZE_SEGMENTS
-#define MAX_SIZE_SEGMENTS 160ULL
-#endif
-
-#define PROFILES_NUM 672ULL
-#define PROFILE_VAL_NUM 4ULL
-
-
-// Probability profile for a single segment.
-// This profile is sampled to determine the Level of Service (how easy is to go through the segment).
-struct segment_time_profile {
-	double values[PROFILE_VAL_NUM];
-	double cum_probs[PROFILE_VAL_NUM];
-};
-
-// A single segment of a road.
-struct segment {
-#ifndef STATIC
-	//string_t<MAX_SIZE_ID> id; // Is this necessary? Can this be converted to a fixed size char array? Or even removed?
-	char id[MAX_SIZE_ID];
-#endif
-	double length; // How precise is distance? mm, cm, meters? What is the maximum length of a segment?
-	double speed; // How precise is speed? mm/s, cm/s, m/s?
-};
-
-// Wrapper struct that contains segment data and its probability profile.
-struct enriched_segment {
-	struct segment segment;
-	struct segment_time_profile profiles[PROFILES_NUM];
-};
-
-// Single route which will be sampled using Monte Carlo to determine how long would it take to go through it.
-typedef struct {
-	// Duration of an atomic movement of a car on a segment.
-	double frequency_seconds;
-	//vector_t<EnrichedSegment, MAX_SIZE_SEGMENTS> segments;
-	struct enriched_segment segments[MAX_SIZE_SEGMENTS];
-} ptdr_route_t;
-
-typedef struct {
-	// Index of a specific segment on which the car is currently located.
-	unsigned long long segment_index;
-	// Number in the range [0.0, 1.0] which determines how far is the car along the segment.
-	double progress; // How precise should this be? Could this be converted to int? Like in [0,100] range?
-} ptdr_routepos_t;
-
-typedef unsigned long long ptdr_datetime_t;
-typedef unsigned long long ptdr_duration_t;
-typedef const unsigned long long ptdr_seed_t;
-
-
 void* ptdr_dev_init(uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int is_vf, int q_start);
 
 int ptdr_dev_destroy(void* dev);
+
+int ptdr_dev_conf(void* dev, char* route_file, unsigned long long *duration_v, size_t duration_size,
+    unsigned long long routepos_index, double routepos_progress, unsigned long long departure_time,
+	unsigned long long seed, void ** data, size_t *data_size);
 
 int ptdr_start(void *dev);
 
@@ -125,8 +74,6 @@ int ptdr_set_interruptconf(void *dev, uint32_t data);
 int ptdr_get_interruptconf(void *dev, uint32_t *data);
 
 int ptdr_get_interruptstatus(void *dev, uint32_t *data);
-
-int ptdr_route_parse(char *buff, size_t buff_size, ptdr_route_t *route, size_t *route_size);
 
 #ifdef DEBUG
 int ptdr_reg_dump(void *dev);
