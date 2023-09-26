@@ -17,6 +17,12 @@ CFLAGS += $(EXTRA_FLAGS)
 ifeq ($(DEBUG),1)
   CFLAGS += -g -DDEBUG -Wall
 endif
+ifeq ($(DEBUG_DEV),1)
+  CFLAGS += -DDEBUG_DEV
+endif
+ifeq ($(DEBUG_QDMA),1)
+  CFLAGS += -DDEBUG_QDMA
+endif
 ifeq ($(HBM16GB),1)
   CFLAGS += -DHBM16GB
 endif

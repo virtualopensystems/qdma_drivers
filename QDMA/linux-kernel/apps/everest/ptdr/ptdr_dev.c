@@ -44,8 +44,8 @@ typedef struct {
 
 
 /* Additional debug prints  */
-#ifdef DEBUG
-#define debug_print(format, ...)	printf(format, ## __VA_ARGS__)
+#ifdef DEBUG_DEV
+#define debug_print(format, ...)	printf("  [PTDR_DEV] " format, ## __VA_ARGS__)
 #else
 #define debug_print(format, ...)	do { } while (0)
 #endif
@@ -307,7 +307,7 @@ int ptdr_start(void *dev)
 	if (ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
-	debug_print("In %s: CTRL reg is 0x%08x", __func__, data);
+	debug_print("In %s: CTRL reg is 0x%08x\n", __func__, data);
 
 	if (data & 0x01) {
 		// Not a fatal error
@@ -318,7 +318,7 @@ int ptdr_start(void *dev)
 	data &= 0x80; //keep only auto_restart bit
 	data |= 0x01; //set ap_start bit
 
-	debug_print("  writing 0x%08x\n", data);
+	debug_print("setting CTRL reg to 0x%08x\n", data);
 	if (ptdr_reg_write(ptdr, data, PTDR_CTRL_ADDR_CTRL)) {
 		return -EIO;
 	}
@@ -698,42 +698,42 @@ int ptdr_reg_dump(void *dev)
 
 	CHECK_DEV_PTR(dev);
 
-	debug_print("\nIn %s: Dumping device registers @ 0x%016lx\n", __func__, ptdr->base);
+	printf("\nIn %s: Dumping device registers @ 0x%016lx\n", __func__, ptdr->base);
 
 	(void) ptdr_ctrl_dump(dev);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_GIE);
-	debug_print("  0x%02x GIE:    0x%08x\n", PTDR_CTRL_ADDR_GIE, data);
+	printf("  0x%02x GIE:    0x%08x\n", PTDR_CTRL_ADDR_GIE, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_IER);
-	debug_print("  0x%02x IER:    0x%08x\n", PTDR_CTRL_ADDR_IER, data);
+	printf("  0x%02x IER:    0x%08x\n", PTDR_CTRL_ADDR_IER, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_ISR);
-	debug_print("  0x%02x ISR:    0x%08x\n", PTDR_CTRL_ADDR_ISR, data);
+	printf("  0x%02x ISR:    0x%08x\n", PTDR_CTRL_ADDR_ISR, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_NUM_TIMES);
-	debug_print("  0x%02x NUM:    0x%08x\n", PTDR_CTRL_ADDR_NUM_TIMES, data);
+	printf("  0x%02x NUM:    0x%08x\n", PTDR_CTRL_ADDR_NUM_TIMES, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_DUR);
-	debug_print("  0x%02x DUR:    0x%08x\n", PTDR_CTRL_ADDR_DUR, data);
+	printf("  0x%02x DUR:    0x%08x\n", PTDR_CTRL_ADDR_DUR, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_ROUTE);
-	debug_print("  0x%02x ROUTE:  0x%08x\n", PTDR_CTRL_ADDR_ROUTE, data);
+	printf("  0x%02x ROUTE:  0x%08x\n", PTDR_CTRL_ADDR_ROUTE, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_POS);
-	debug_print("  0x%02x POS:    0x%08x\n", PTDR_CTRL_ADDR_POS, data);
+	printf("  0x%02x POS:    0x%08x\n", PTDR_CTRL_ADDR_POS, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_DEP);
-	debug_print("  0x%02x DEP:    0x%08x\n", PTDR_CTRL_ADDR_DEP, data);
+	printf("  0x%02x DEP:    0x%08x\n", PTDR_CTRL_ADDR_DEP, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_SEED);
-	debug_print("  0x%02x SEED:   0x%08x\n", PTDR_CTRL_ADDR_SEED, data);
+	printf("  0x%02x SEED:   0x%08x\n", PTDR_CTRL_ADDR_SEED, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_BASE);
-	debug_print("  0x%02x BASE0:  0x%08x\n", PTDR_CTRL_ADDR_BASE, data);
+	printf("  0x%02x BASE0:  0x%08x\n", PTDR_CTRL_ADDR_BASE, data);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_BASE + REG_SIZE);
-	debug_print("  0x%02x BASE1:  0x%08x\n", PTDR_CTRL_ADDR_BASE + REG_SIZE, data);
+	printf("  0x%02x BASE1:  0x%08x\n", PTDR_CTRL_ADDR_BASE + REG_SIZE, data);
 
 	return 0;
 }
@@ -746,14 +746,14 @@ int ptdr_ctrl_dump(void *dev)
 	CHECK_DEV_PTR(dev);
 
 	(void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL);
-	debug_print("  0x%02x CTRL: 0x%08x ", PTDR_CTRL_ADDR_CTRL, data);
-	debug_print(" start %d", (data >> 0) & 0x01);
-	debug_print(" done %d", (data >> 1) & 0x01);
-	debug_print(" idle %d", (data >> 2) & 0x01);
-	debug_print(" ready %d", (data >> 3) & 0x01);
-	debug_print(" cont %d", (data >> 4) & 0x01);
-	debug_print(" rest %d", (data >> 7) & 0x01);
-	debug_print(" inter %d\n", (data >> 9) & 0x01);
+	printf("  0x%02x CTRL: 0x%08x ", PTDR_CTRL_ADDR_CTRL, data);
+	printf(" start %d", (data >> 0) & 0x01);
+	printf(" done %d", (data >> 1) & 0x01);
+	printf(" idle %d", (data >> 2) & 0x01);
+	printf(" ready %d", (data >> 3) & 0x01);
+	printf(" cont %d", (data >> 4) & 0x01);
+	printf(" rest %d", (data >> 7) & 0x01);
+	printf(" inter %d\n", (data >> 9) & 0x01);
 
 	return 0;
 }

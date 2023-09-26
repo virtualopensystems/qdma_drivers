@@ -28,8 +28,8 @@
 #define QDMA_DEF_QUEUES     (2) // Number of queue to set
 
 /* Additional debug prints  */
-#ifdef DEBUG
-#define debug_print(format, ...)	printf(format, ## __VA_ARGS__)
+#ifdef DEBUG_QDMA
+#define debug_print(format, ...)	printf("  [QDMA_Q] " format, ## __VA_ARGS__)
 #else
 #define debug_print(format, ...)	do { } while (0)
 #endif
