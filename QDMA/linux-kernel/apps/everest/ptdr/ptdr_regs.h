@@ -5,7 +5,7 @@
  * ****************************************************************************
  * File Name   : ptdr_regs.h
  * Author      : STEFANO CIRICI <s.cirici@virtualopensystems.com>
- * Description :
+ * Description : PTDR device registers description
  *
  */
 
@@ -53,21 +53,26 @@
 //        bit 31~0 - base[63:32] (Read/Write)
 // 0x48 : reserved
 // 0x4c : reserved
-// (SC = Self Clear, COR = Clear on Read, TOW = Toggle on Write, COH = Clear on Handshake)
+//
+// SC  = Self Clear
+// COR = Clear on Read
+// TOW = Toggle on Write
+// COH = Clear on Handshake
+
 
 #ifndef PTDR_REGS_H
 #define PTDR_REGS_H
 
-#define PTDR_CTRL_ADDR_CTRL				(0x00)
-#define PTDR_CTRL_ADDR_GIE				(0x04)
-#define PTDR_CTRL_ADDR_IER				(0x08)
-#define PTDR_CTRL_ADDR_ISR				(0x0c)
-#define PTDR_CTRL_ADDR_NUM_TIMES		(0x10)
-#define PTDR_CTRL_ADDR_DUR				(0x18)
-#define PTDR_CTRL_ADDR_ROUTE			(0x20)
-#define PTDR_CTRL_ADDR_POS				(0x28)
-#define PTDR_CTRL_ADDR_DEP				(0x30)
-#define PTDR_CTRL_ADDR_SEED				(0x38)
-#define PTDR_CTRL_ADDR_BASE				(0x40)
+#define PTDR_CTRL_ADDR_CTRL             (0x00)
+#define PTDR_CTRL_ADDR_GIE              (0x04)
+#define PTDR_CTRL_ADDR_IER              (0x08)
+#define PTDR_CTRL_ADDR_ISR              (0x0c)
+#define PTDR_CTRL_ADDR_NUM_TIMES        (0x10)
+#define PTDR_CTRL_ADDR_DUR              (0x18)
+#define PTDR_CTRL_ADDR_ROUTE            (0x20)
+#define PTDR_CTRL_ADDR_POS              (0x28)
+#define PTDR_CTRL_ADDR_DEP              (0x30)
+#define PTDR_CTRL_ADDR_SEED             (0x38)
+#define PTDR_CTRL_ADDR_BASE             (0x40)
 
-#endif
+#endif //#define PTDR_REGS_H

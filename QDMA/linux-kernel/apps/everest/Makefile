@@ -10,7 +10,6 @@
 # */
 CC ?= gcc
 
-CFLAGS += -g
 #CFLAGS += -O2 -fno-inline -Wall -Wstrict-prototypes
 CFLAGS += -I. -I../include -I../dma-utils -I./qdma
 CFLAGS += $(EXTRA_FLAGS)

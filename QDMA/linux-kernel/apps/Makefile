@@ -99,7 +99,7 @@ ptdr-test:
 	@cp -f $(everest_dir)/ptdr-test $(bin_dir)	
 
 .PHONY: apps
-apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency helm-test ptdr_test
+apps: dma-ctl dma-from-device dma-to-device dma-xfer dma-perf dma-latency helm-test ptdr-test
 
 
 .PHONY: clean

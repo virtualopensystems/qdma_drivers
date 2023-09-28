@@ -5,7 +5,7 @@
  * ****************************************************************************
  * File Name   : helm_regs.h
  * Author      : STEFANO CIRICI <s.cirici@virtualopensystems.com>
- * Description :
+ * Description : Helmoltz device registers description
  *
  */
 
@@ -42,17 +42,21 @@
 // 0x28 : Data signal of num_times
 //        bit 31~0 - num_times[31:0] (Read/Write)
 // 0x2c : reserved
-// (SC = Self Clear, COR = Clear on Read, TOW = Toggle on Write, COH = Clear on Handshake)
+//
+// SC  = Self Clear
+// COR = Clear on Read
+// TOW = Toggle on Write
+// COH = Clear on Handshake
 
 #ifndef HELM_REGS_H
 #define HELM_REGS_H
 
-#define HELM_CTRL_ADDR_CTRL				(0x00)
-#define HELM_CTRL_ADDR_GIE				(0x04)
-#define HELM_CTRL_ADDR_IER				(0x08)
-#define HELM_CTRL_ADDR_ISR				(0x0c)
-#define HELM_CTRL_ADDR_IN_DATA			(0x10)
-#define HELM_CTRL_ADDR_OUT_DATA			(0x1c)
-#define HELM_CTRL_ADDR_NUM_TIMES		(0x28)
+#define HELM_CTRL_ADDR_CTRL             (0x00)
+#define HELM_CTRL_ADDR_GIE              (0x04)
+#define HELM_CTRL_ADDR_IER              (0x08)
+#define HELM_CTRL_ADDR_ISR              (0x0c)
+#define HELM_CTRL_ADDR_IN_DATA          (0x10)
+#define HELM_CTRL_ADDR_OUT_DATA         (0x1c)
+#define HELM_CTRL_ADDR_NUM_TIMES        (0x28)
 
-#endif
+#endif //#define HELM_REGS_H
