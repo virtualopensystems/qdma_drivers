@@ -69,10 +69,10 @@ int ptdr_dev_destroy(void* dev);
  * Return:              0 on success, negative errno otherwise
  *
  *****************************************************************************/
-int ptdr_dev_conf(void* dev, char* route_file, unsigned long long *duration_v,
-        size_t duration_size, unsigned long long routepos_index,
-        double routepos_progress, unsigned long long departure_time,
-        unsigned long long seed, void ** data, size_t *data_size);
+int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
+        size_t duration_size, uint64_t routepos_index,
+        double routepos_progress, uint64_t departure_time,
+        uint64_t seed, uint64_t base);
 
 /*****************************************************************************/
 /**

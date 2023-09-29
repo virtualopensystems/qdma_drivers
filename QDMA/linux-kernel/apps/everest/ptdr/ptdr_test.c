@@ -27,10 +27,6 @@
 #define SAMPLES_COUNT 10
 #endif
 
-#ifndef ITERATIONS_COUNT
-#define ITERATIONS_COUNT 1
-#endif
-
 #define KERN_PCI_BUS        (0x0083)
 #define KERN_PCI_VF_BUS     (0x0007)
 #define KERN_PCI_DEV        (0x00)
@@ -140,7 +136,7 @@ static int mem_read_to_buffer(uint64_t addr, uint64_t size, char** buffer)
     return ret;
 }
 
-static int mem_write_from_buffer(uint64_t addr, char* buffer, size_t size)
+static int __attribute__((unused)) mem_write_from_buffer(uint64_t addr, char* buffer, size_t size)
 {
     int ret;
     struct queue_info *q_info;
@@ -331,7 +327,7 @@ int main(int argc, char *argv[])
 
     info_print("    MEM IN   0x%016lx - 0x%016lx\n", hbm_addr, hbm_addr+MEM_IN_SIZE);
     info_print("    Kern PCI %04x:%02x.%01x\n", kern_pci_bus, kern_pci_dev, kern_pci_id);
-    info_print("    Samples %d, iterations %d\n", SAMPLES_COUNT, ITERATIONS_COUNT);
+    info_print("    Samples %d\n", SAMPLES_COUNT);
 
 
     info_print("\nInitializing kernel @ 0x%016lx\n", kern_addr);
@@ -346,23 +342,26 @@ int main(int argc, char *argv[])
     }
     info_print("Kernel initialized correctly!\n");
 
+    info_print("\nWaiting for kernel to be ready\n");
+    count = TIMEOUT_COUNT_MS;
+    while ((ptdr_isready(kern) == 0) && (--count != 0)) {
+        nanosleep(&ts, NULL); // sleep 1ms
+        if ((count % 1000) == 0) { // Print "." every sec
+            info_print(" ."); fflush(stdout);
+        }
+    }
+    if (count == 0) {
+        info_print("\nTIMEOUT reached\n\n");
+        ERR_CHECK(-EAGAIN);
+    }
+    (void) ptdr_reg_dump(kern);
+
+
+    info_print("\nConfiguring kernel\n");
     // Create memory structure for kernel and fill it from file
-    unsigned long long dur_profiles[ITERATIONS_COUNT][SAMPLES_COUNT];
-    void* mem_dat;
-    size_t data_size;
-    ret = ptdr_dev_conf(kern, input_filename, dur_profiles[0], sizeof(dur_profiles[0]), 0, 0.0,
-            1623823200ULL * 1000, 0xABCDE23456789, &mem_dat, &data_size);
-    ERR_CHECK(ret);
-
-    //Write memory structure into FPGA memory
-    info_print("Write inputs to FPGA HBM mem @0x%016lx size %ld\n", hbm_addr, data_size);
-    ret = mem_write_from_buffer(hbm_addr, mem_dat, data_size);
-    ERR_CHECK(ret);
-
-    free(mem_dat);
-
-    info_print("Setting base to 0x%016lx\n", hbm_addr);
-    ret = ptdr_set_base(kern, hbm_addr);
+    uint64_t dur_profiles[SAMPLES_COUNT] = {0};
+    ret = ptdr_dev_conf(kern, input_filename, dur_profiles, sizeof(dur_profiles), 0, 0.0,
+            1623823200ULL * 1000, 0xABCDE23456789, hbm_addr);
     ERR_CHECK(ret);
 
     info_print("Setting num times to 1\n");
@@ -379,26 +378,9 @@ int main(int argc, char *argv[])
 
     info_print("Kernel is ready %d\n", ptdr_isready(kern));
     info_print("Kernel is idle %d\n", ptdr_isidle(kern));
-
     (void) ptdr_reg_dump(kern);
 
-
-    info_print("\nWaiting for kernel to be ready\n");
-    count = TIMEOUT_COUNT_MS;
-    while ((ptdr_isready(kern) == 0) && (--count != 0)) {
-        nanosleep(&ts, NULL); // sleep 1ms
-        if ((count % 1000) == 0) { // Print "." every sec
-            info_print(" ."); fflush(stdout);
-        }
-    }
-    if (count == 0) {
-        info_print("\nTIMEOUT reached\n\n");
-        ERR_CHECK(-EAGAIN);
-    }
-    (void) ptdr_ctrl_dump(kern);
-
-
-    info_print("Starting kernel operations\n");
+    info_print("\nStarting kernel operations\n");
     ret = ptdr_start(kern);
     if (ptdr_isdone(kern)) {
         // If this is not the first operation, the done bit will remain high.
@@ -431,9 +413,9 @@ int main(int argc, char *argv[])
     // Read FPGA out mem into buffer and write the buffer into  output file
     {
         char *buff;
-        ret = mem_read_to_buffer(hbm_addr, sizeof(dur_profiles[0]), &buff);
+        ret = mem_read_to_buffer(hbm_addr, sizeof(dur_profiles), &buff);
         ERR_CHECK(ret);
-        ret = write_buffer_into_file(output_filename, buff, sizeof(dur_profiles[0]));
+        ret = write_buffer_into_file(output_filename, buff, sizeof(dur_profiles));
         ERR_CHECK(ret);
         free(buff);
     }

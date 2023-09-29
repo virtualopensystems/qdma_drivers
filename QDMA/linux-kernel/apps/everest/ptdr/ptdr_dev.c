@@ -230,24 +230,17 @@ read_err:
 }
 
 
-int ptdr_dev_conf(void* dev, char* route_file, unsigned long long *duration_v,
-        size_t duration_size, unsigned long long routepos_index,
-        double routepos_progress, unsigned long long departure_time,
-        unsigned long long seed, void ** data, size_t *data_size)
+int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
+        size_t duration_size, uint64_t routepos_index,
+        double routepos_progress, uint64_t departure_time,
+        uint64_t seed, uint64_t base)
 {
     int ret = 0;
+    ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
+    CHECK_DEV_PTR(dev);
 
     ptdr_route_t route;
     ptdr_routepos_t start_pos = {routepos_index, routepos_progress};
-
-    size_t total_size = duration_size + sizeof(route) + sizeof(start_pos) + sizeof(departure_time) + sizeof(seed);
-
-    unsigned int durations_ptr = 0;
-    unsigned int route_ptr = durations_ptr + duration_size;
-    unsigned int position_ptr = route_ptr + sizeof(route);
-    unsigned int departure_ptr = position_ptr + sizeof(start_pos);
-    unsigned int seed_ptr = departure_ptr + sizeof(departure_time);
-
 
     ret = ptdr_read_route_from_file(route_file, &route);
     if (ret != 0) {
@@ -255,46 +248,33 @@ int ptdr_dev_conf(void* dev, char* route_file, unsigned long long *duration_v,
         return ret;
     }
 
-    debug_print("dur_size %ld\n", duration_size);
-    debug_print("route_size %ld\n", sizeof(route));
-    debug_print("pos_size %ld\n", sizeof(start_pos));
-    debug_print("dep_size %ld\n", sizeof(departure_time));
-    debug_print("seed_size %ld\n", sizeof(seed));
-    debug_print("total_size %ld\n\n", total_size);
+    // Write duration structure to memory (starting from base addr) and set ptr into register
+    uint64_t ptr = 0;
+    if (queue_write(ptdr->q_info, duration_v, duration_size, base + ptr) != duration_size) return -EIO;
+    if ((ret = ptdr_set_durations(dev, ptr)) != 0) return ret;
 
-    // Allocate space for the total amount
-    char* mem_dat = (char*)malloc(total_size);
-    if (mem_dat == NULL) {
-        fprintf(stderr, "Error allocating %ld bytes\n", total_size);
-        return -ENOMEM;
-    }
+    // Write route structure to memory (after duration) and set ptr into register
+    ptr += duration_size;
+    if (queue_write(ptdr->q_info, &route, sizeof(route), base + ptr) != sizeof(route)) return -EIO;
+    if ((ret = ptdr_set_route(dev, ptr)) != 0) return ret;
 
-    // Copy data into this unified space
-    memcpy(&mem_dat[durations_ptr], (const char*) (&duration_v),         duration_size);
-    memcpy(&mem_dat[route_ptr],     (const char*) (&route),              sizeof(route));
-    memcpy(&mem_dat[position_ptr],  (const char*) (&start_pos),          sizeof(start_pos));
-    memcpy(&mem_dat[departure_ptr], (const char*) (&departure_time),     sizeof(departure_time));
-    memcpy(&mem_dat[seed_ptr],      (const char*) (&seed),               sizeof(seed));
+    // Write start_pos structure to memory (after route) and set ptr into register
+    ptr += sizeof(route);
+    if (queue_write(ptdr->q_info, &start_pos, sizeof(start_pos), base + ptr) != sizeof(start_pos)) return -EIO;
+    if ((ret = ptdr_set_position(dev, ptr)) != 0) return ret;
 
+    // Write departure_time to memory (after start pos) and set ptr into register
+    ptr += sizeof(start_pos);
+    if (queue_write(ptdr->q_info, &departure_time, sizeof(departure_time), base + ptr) != sizeof(departure_time)) return -EIO;
+    if ((ret = ptdr_set_departure(dev, ptr)) != 0) return ret;
 
-    debug_print("Setting duration ptr to %u\n", durations_ptr);
-    if ((ret = ptdr_set_durations(dev, durations_ptr)) != 0) return ret;
+    // Write seed to memory (after departure) and set ptr into register
+    ptr += sizeof(departure_time);
+    if (queue_write(ptdr->q_info, &seed, sizeof(seed), base + ptr) != sizeof(seed)) return -EIO;
+    if ((ret = ptdr_set_seed(dev, ptr)) != 0) return ret;
 
-    debug_print("Setting route ptr to %u\n", route_ptr);
-    if ((ret = ptdr_set_route(dev, route_ptr)) != 0) return ret;
-
-    debug_print("Setting position ptr to %u\n", position_ptr);
-    if ((ret = ptdr_set_position(dev, position_ptr)) != 0) return ret;
-
-    debug_print("Setting departure ptr to %u\n", departure_ptr);
-    if ((ret = ptdr_set_departure(dev, departure_ptr)) != 0) return ret;
-
-    debug_print("Setting seed ptr to %u\n", seed_ptr);
-    if ((ret = ptdr_set_seed(dev, seed_ptr)) != 0) return ret;
-
-
-    *data = (void*) mem_dat;
-    *data_size = total_size;
+    // Set base register
+    if ((ret = ptdr_set_base(dev, base)) != 0) return ret;
 
     return 0;
 }
