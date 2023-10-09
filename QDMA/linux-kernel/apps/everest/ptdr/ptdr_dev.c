@@ -63,6 +63,15 @@ typedef struct {
 #define PROFILE_VAL_NUM 4ULL
 #endif
 
+
+// Structure used to convert an etl::vector_t type to a C array
+// This structure should preceed an array that was defined as vector_t
+struct vec_conv {
+    uint64_t max;
+    uint64_t z;
+    uint64_t size;
+};
+
 // Probability profile for a single segment.
 // This profile is sampled to determine the Level of Service (how easy is to go through the segment).
 struct segment_time_profile {
@@ -89,6 +98,7 @@ struct enriched_segment {
 typedef struct {
     // Duration of an atomic movement of a car on a segment.
     double frequency_seconds;
+    struct vec_conv segments_vec;
     struct enriched_segment segments[MAX_SIZE_SEGMENTS];
 } ptdr_route_t;
 
@@ -193,6 +203,10 @@ static int ptdr_read_route_from_file(char *filename, ptdr_route_t *route)
         return -EINVAL;
     }
 
+    route->segments_vec.max = MAX_SIZE_SEGMENTS;
+    route->segments_vec.z = 0;
+    route->segments_vec.size = count;
+
     // Iterate on each segment
     for (int i = 0; i < count; i++) {
 
@@ -220,18 +234,19 @@ static int ptdr_read_route_from_file(char *filename, ptdr_route_t *route)
         }
     }
 
+    debug_print("In %s, read 0x%lx bytes\n", __func__, ftell(file));
+
     fclose(file);
     return 0;
 
 read_err:
-    fprintf(stderr, "Error while reading, read %ld bytes\n", rsize);
+    fprintf(stderr, "ERR: read only %ld bytes\n", rsize);
     fclose(file);
     return -EIO;
 }
 
-
 int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
-        size_t duration_size, uint64_t routepos_index,
+        uint64_t samples_count, uint64_t routepos_index,
         double routepos_progress, uint64_t departure_time,
         uint64_t seed, uint64_t base)
 {
@@ -239,7 +254,7 @@ int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
     ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
     CHECK_DEV_PTR(dev);
 
-    ptdr_route_t route;
+    ptdr_route_t route = {0};
     ptdr_routepos_t start_pos = {routepos_index, routepos_progress};
 
     ret = ptdr_read_route_from_file(route_file, &route);
@@ -248,33 +263,74 @@ int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
         return ret;
     }
 
-    // Write duration structure to memory (starting from base addr) and set ptr into register
     uint64_t ptr = 0;
-    if (queue_write(ptdr->q_info, duration_v, duration_size, base + ptr) != duration_size) return -EIO;
-    if ((ret = ptdr_set_durations(dev, ptr)) != 0) return ret;
+
+    // Write duration structure to memory (starting from base addr) and set ptr into register
+    {
+        struct vec_conv dur_vc = {samples_count, 0, samples_count};
+        if (queue_write(ptdr->q_info, &dur_vc, sizeof(dur_vc), base + ptr) != sizeof(dur_vc)) return -EIO;
+        ptr += sizeof(dur_vc);
+
+        uint64_t duration_size = samples_count * sizeof(duration_v[0]);
+        if (queue_write(ptdr->q_info, duration_v, duration_size, base + ptr) != duration_size) return -EIO;
+
+        // Duration start at 0, including the conversion vector
+        if ((ret = ptdr_set_durations(dev, 0)) != 0) return ret;
+        debug_print("DUR     @0x%015lx %ld\n", 0, 0);
+        ptr += duration_size;
+    }
 
     // Write route structure to memory (after duration) and set ptr into register
-    ptr += duration_size;
     if (queue_write(ptdr->q_info, &route, sizeof(route), base + ptr) != sizeof(route)) return -EIO;
     if ((ret = ptdr_set_route(dev, ptr)) != 0) return ret;
+    debug_print("ROUTE   @0x%015lx %ld\n", ptr, ptr);
+    ptr += sizeof(route);
 
     // Write start_pos structure to memory (after route) and set ptr into register
-    ptr += sizeof(route);
     if (queue_write(ptdr->q_info, &start_pos, sizeof(start_pos), base + ptr) != sizeof(start_pos)) return -EIO;
     if ((ret = ptdr_set_position(dev, ptr)) != 0) return ret;
+    debug_print("STARTP  @0x%015lx %ld\n", ptr, ptr);
+    ptr += sizeof(start_pos);
 
     // Write departure_time to memory (after start pos) and set ptr into register
-    ptr += sizeof(start_pos);
     if (queue_write(ptdr->q_info, &departure_time, sizeof(departure_time), base + ptr) != sizeof(departure_time)) return -EIO;
     if ((ret = ptdr_set_departure(dev, ptr)) != 0) return ret;
+    debug_print("DEPTIME @0x%015lx %ld\n", ptr, ptr);
+    ptr += sizeof(departure_time);
 
     // Write seed to memory (after departure) and set ptr into register
-    ptr += sizeof(departure_time);
     if (queue_write(ptdr->q_info, &seed, sizeof(seed), base + ptr) != sizeof(seed)) return -EIO;
     if ((ret = ptdr_set_seed(dev, ptr)) != 0) return ret;
+    debug_print("SEED    @0x%015lx %ld\n", ptr, ptr);
+
+    debug_print("\n\nS dur %ld route %ld pos %ld dep %ld seed %ld, tot %ld\n",
+                 samples_count*sizeof(uint64_t)+24, sizeof(route), sizeof(start_pos), sizeof(departure_time), sizeof(seed),
+                 ptr + sizeof(seed));
 
     // Set base register
     if ((ret = ptdr_set_base(dev, base)) != 0) return ret;
+
+    return 0;
+}
+
+int ptdr_dev_get_durv(void* dev, uint64_t *duration_v, uint64_t samples_count, uint64_t base)
+{
+    ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
+    CHECK_DEV_PTR(dev);
+
+    uint64_t ptr = 0;
+    struct vec_conv dur_vc = {samples_count, 0, samples_count};
+    if (queue_read(ptdr->q_info, &dur_vc, sizeof(dur_vc), base + ptr) != sizeof(dur_vc)) return -EIO;
+    ptr += sizeof(dur_vc);
+
+
+    if (dur_vc.size != samples_count) {
+        fprintf(stderr, "ERR: got %ld samples, expected %ld\n", dur_vc.size, samples_count);
+        return -EINVAL;
+    }
+
+    uint64_t duration_size = samples_count * sizeof(duration_v[0]);
+    if (queue_read(ptdr->q_info, duration_v, duration_size, base + ptr) != duration_size) return -EIO;
 
     return 0;
 }
@@ -728,7 +784,7 @@ int ptdr_ctrl_dump(void *dev)
     CHECK_DEV_PTR(dev);
 
     (void) ptdr_reg_read(ptdr, &data, PTDR_CTRL_ADDR_CTRL);
-    printf("  0x%02x CTRL: 0x%08x ", PTDR_CTRL_ADDR_CTRL, data);
+    printf("  0x%02x CTRL:   0x%08x ", PTDR_CTRL_ADDR_CTRL, data);
     printf(" start %d", (data >> 0) & 0x01);
     printf(" done %d", (data >> 1) & 0x01);
     printf(" idle %d", (data >> 2) & 0x01);

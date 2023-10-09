@@ -12,6 +12,9 @@ CC ?= gcc
 
 #CFLAGS += -O2 -fno-inline -Wall -Wstrict-prototypes
 CFLAGS += -I. -I../include -I../dma-utils -I./qdma
+
+# Default static
+CFLAGS += -DSTATIC
 CFLAGS += $(EXTRA_FLAGS)
 ifeq ($(DEBUG),1)
   CFLAGS += -g -DDEBUG -Wall

@@ -53,26 +53,42 @@ int ptdr_dev_destroy(void* dev);
  *
  * Configure the PTDR device memory space, also writing the durations, route,
  * position, departure and seed registers.
- * Return in @data the structure to write @base_reg_address
  *
  * @dev:                Device pointer
  * @route_file:         Name of the file containing the route
  * @duration_v:         Array of durations
- * @duration_size:      Number of elements in duration_v
+ * @samples_count:      Number of samples (elements in duration_v)
  * @routepos_index:     Initial position index
  * @routepos_progress:  Initial position progress
  * @departure_time:     Departure time
  * @seed:               Seed for the RNG
- * @data:               Pointer where to return the allocated filled structure
- * @data_size:          Pointer where to return the size of data
+ * @base:               Base address in memory where to write the data struct
  *
  * Return:              0 on success, negative errno otherwise
  *
  *****************************************************************************/
 int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
-        size_t duration_size, uint64_t routepos_index,
+        uint64_t samples_count, uint64_t routepos_index,
         double routepos_progress, uint64_t departure_time,
         uint64_t seed, uint64_t base);
+
+/*****************************************************************************/
+/**
+ * ptdr_dev_get_durv() - Get the duration vector from memory
+ *
+ * Get the duration vector from memory, where the kernel will write the
+ * output after the execution.
+ *
+ * @dev:                Device pointer
+ * @duration_v:         Array of durations
+ * @samples_count:      Number of samples to get (elements in duration_v)
+ * @base:               Base address in memory where the data struct is
+ *
+ * Return:              0 on success, negative errno otherwise
+ *
+ *****************************************************************************/
+int ptdr_dev_get_durv(void* dev, uint64_t *duration_v, uint64_t samples_count,
+        uint64_t base);
 
 /*****************************************************************************/
 /**

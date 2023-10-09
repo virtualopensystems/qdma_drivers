@@ -36,14 +36,14 @@
 #define VF_NUM_MAX          (252) // Max num of VF allowed by QDMA
 
 /* ptdrXHBM.bit */
-#define MEM_IN_BASE_ADDR    (0x0000000000000000ULL) // input @ 0
+#define MEM_IN_BASE_ADDR    (0x0000000000001000ULL) // input @ 0
 #define KERN_BASE_ADDR      (0x0000000400000000ULL) // kernels starts after 16 GB of HBM
 #define KERN_VF_INCR        (0x0000000000010000ULL) // kernels offset
 
 #define ROUND_UP(num, pow)  ( (num + (pow-1)) & (~(pow-1)) )
-#define MEM_IN_SIZE         ( 6889080 ) // sizeof(ptdr_route_t)
+#define MEM_IN_SIZE         ( 0x700000 ) // sizeof data structure is 0x690AA8
 
-#define TIMEOUT_COUNT_MS    (300*1000) //5 min
+#define TIMEOUT_COUNT_MS    (30*1000) // 30 seconds
 
 #ifndef DEBUG
 #define ptdr_reg_dump(x) (x)
@@ -189,7 +189,7 @@ int write_buffer_into_file(const char* filename, const char* buffer, size_t buff
     return 0;
 }
 
-int read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_size)
+int __attribute__((unused)) read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_size)
 {
     FILE* file = fopen(filename, "rb");
     size_t size = 0;
@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
     info_print("\nConfiguring kernel\n");
     // Create memory structure for kernel and fill it from file
     uint64_t dur_profiles[SAMPLES_COUNT] = {0};
-    ret = ptdr_dev_conf(kern, input_filename, dur_profiles, sizeof(dur_profiles), 0, 0.0,
+    ret = ptdr_dev_conf(kern, input_filename, dur_profiles, SAMPLES_COUNT, 0, 0.0,
             1623823200ULL * 1000, 0xABCDE23456789, hbm_addr);
     ERR_CHECK(ret);
 
@@ -409,13 +409,21 @@ int main(int argc, char *argv[])
         info_print("FINISHED!\n\n");
     }
 
+    ret = ptdr_dev_get_durv(kern, dur_profiles, SAMPLES_COUNT, hbm_addr);
+    ERR_CHECK(ret);
 
-    // Read FPGA out mem into buffer and write the buffer into  output file
+    for (int i=0; i<SAMPLES_COUNT; i++) {
+        printf(" DUR[%02d] = %ld\n", i, dur_profiles[i]);
+    }
+
+
+    // Read FPGA out mem into buffer and write the buffer into output file
     {
         char *buff;
-        ret = mem_read_to_buffer(hbm_addr, sizeof(dur_profiles), &buff);
+        size_t out_size = sizeof(dur_profiles) + 3 *sizeof(uint64_t);
+        ret = mem_read_to_buffer(hbm_addr, out_size, &buff);
         ERR_CHECK(ret);
-        ret = write_buffer_into_file(output_filename, buff, sizeof(dur_profiles));
+        ret = write_buffer_into_file(output_filename, buff, out_size);
         ERR_CHECK(ret);
         free(buff);
     }
