@@ -77,7 +77,7 @@ static int kern_pci_id          = KERN_FUN_ID;
 static int is_vf                = KERN_IS_VF;
 
 
-void intHandler(int sig) {
+static void intHandler(int sig) {
     char c;
     int ret;
 
@@ -167,7 +167,7 @@ static int __attribute__((unused)) mem_write_from_buffer(uint64_t addr, char* bu
 }
 
 
-int write_buffer_into_file(const char* filename, const char* buffer, size_t buffer_size)
+static int write_buffer_into_file(const char* filename, const char* buffer, size_t buffer_size)
 {
     FILE* file = fopen(filename, "wb");
 
@@ -189,7 +189,7 @@ int write_buffer_into_file(const char* filename, const char* buffer, size_t buff
     return 0;
 }
 
-int __attribute__((unused)) read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_size)
+static int __attribute__((unused)) read_file_into_buffer(const char* filename, char** buffer, size_t* buffer_size)
 {
     FILE* file = fopen(filename, "rb");
     size_t size = 0;

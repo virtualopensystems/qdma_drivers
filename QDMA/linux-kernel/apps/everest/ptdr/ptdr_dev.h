@@ -69,7 +69,7 @@ int ptdr_dev_destroy(void* dev);
  *****************************************************************************/
 int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
         uint64_t samples_count, uint64_t routepos_index,
-        double routepos_progress, uint64_t departure_time,
+        uint64_t routepos_progress, uint64_t departure_time,
         uint64_t seed, uint64_t base);
 
 /*****************************************************************************/
