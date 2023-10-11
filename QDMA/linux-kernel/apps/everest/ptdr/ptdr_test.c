@@ -80,7 +80,6 @@ int main(int argc, char *argv[])
 {
     int ret, opt;
     char *input_filename = NULL;
-    char *output_filename = NULL;
     int vf_num = -1;
     uint64_t bdf = 0xFFFFFFFF;
 
@@ -94,9 +93,6 @@ int main(int argc, char *argv[])
                 exit(EXIT_SUCCESS);
             case 'i':
                 input_filename = optarg;
-                break;
-            case 'o':
-                output_filename = optarg;
                 break;
             case 'v':
                 vf_num = strtol(optarg, NULL, 0);
@@ -112,13 +108,15 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             default:
                 /* Should never get here */
-                abort();
+                printf("Invalid options\n\n");
+                print_usage(argv);
+                exit(EXIT_FAILURE);
         }
     }
 
 
-    if (input_filename == NULL || output_filename == NULL) {
-        printf("Invalid input or output file names!\n");
+    if (input_filename == NULL) {
+        printf("Invalid input file name!\n");
         exit(EXIT_FAILURE);
     }
 
