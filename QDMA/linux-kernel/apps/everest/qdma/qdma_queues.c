@@ -277,14 +277,16 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 
     debug_print("In %s: opening queue %s\n", __func__, q_name);
     ret = open(q_name, O_RDWR);
-    free(q_name); //free queue name anyway
 
     if (ret < 0) {
         fprintf(stderr, "ERR %d: while opening device %s.\n", errno, q_name);
+        free(q_name);
         queue_del(q_info);
         free(q_info);
         return -errno;
     }
+
+    free(q_name);
     q_info->fd = ret;
 
     return 0;

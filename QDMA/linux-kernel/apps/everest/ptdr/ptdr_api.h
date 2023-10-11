@@ -20,18 +20,14 @@
 /**
  * ptdr_init() - Initialize the PTDR device
  *
- * @dev_addr:   Address of the kernel in the FPGA memory
- * @pci_bus:    PCI Bus ID of the kernel
- * @pci_dev:    PCI Device ID of the kernel
- * @fun_id:     PCI Function ID of the kernel
- * @is_vf:      0 if the device is a PF, 1 if it is a VF
- * @q_start:    ID of the queue to use
+ * @vf_num:     Specify VF to use
+ * @bdf:        PCI Bus ID of the kernel in the format 0x000BBDDF
+ *                  B: Bus, D: Device, F: Function
  *
  * Return:      Pointer to the device, NULL on failure
  *
  *****************************************************************************/
-void* ptdr_init(int vf_num);
-//uint64_t dev_addr, int pci_bus, int pci_dev, int fun_id, int is_vf, int q_start);
+void* ptdr_init(int vf_num, uint32_t bdf);
 
 /*****************************************************************************/
 /**
@@ -44,13 +40,9 @@ void* ptdr_init(int vf_num);
  *****************************************************************************/
 int ptdr_destroy(void* dev);
 
-
 /*****************************************************************************/
 /**
- * ptdr_pack_input() - Configure device and return data structure
- *
- * Configure the PTDR device memory space, also writing the durations, route,
- * position, departure and seed registers.
+ * ptdr_pack_input() - Configure kernel and pack input data to memory
  *
  * @dev:                Device pointer
  * @route_file:         Name of the file containing the route
@@ -60,7 +52,6 @@ int ptdr_destroy(void* dev);
  * @routepos_progress:  Initial position progress
  * @departure_time:     Departure time
  * @seed:               Seed for the RNG
- * @base:               Base address in memory where to write the data struct
  *
  * Return:              0 on success, negative errno otherwise
  *
@@ -71,31 +62,29 @@ int ptdr_pack_input(void* dev, char* route_file, uint64_t *duration_v,
 
 /*****************************************************************************/
 /**
- * ptdr_run_kernel() - Initialize the PTDR device
+ * ptdr_run_kernel() - Start operations on the PTDR kernel
  *
- * @dev_addr:           Address of the kernel in the FPGA memory
- * @pci_bus:            PCI Bus ID of the kernel
- * @pci_dev:            PCI Device ID of the kernel
- * @fun_id:             PCI Function ID of the kernel
- * @is_vf:              0 if the device is a PF, 1 if it is a VF
- * @q_start:            ID of the queue to use
+ * If timeout_us != 0, the function will wait at maximm timeout_us microseconds
+ * for the kernel to be ready or to finish.
+ * If timeout_us=0, the function will wait undefinitely.
+ *
+ * @dev:                Device pointer
+ * @timeout_us:         Timeout in microseconds
  *
  * Return:              0 on success, negative errno otherwise
  *
  *****************************************************************************/
-int ptdr_run_kernel(void* dev, int timeout);
+int ptdr_run_kernel(void* dev, uint64_t timeout_us);
 
 /*****************************************************************************/
 /**
- * ptdr_unpack_output() - Get the duration vector from memory
+ * ptdr_unpack_output() - Get the output data from memory
  *
- * Get the duration vector from memory, where the kernel will write the
- * output after the execution.
+ * Get the duration vector from memory.
  *
  * @dev:                Device pointer
- * @duration_v:         Array of durations
+ * @duration_v:         Array of durations (of size samples_count)
  * @samples_count:      Number of samples to get (elements in duration_v)
- * @base:               Base address in memory where the data struct is
  *
  * Return:              0 on success, negative errno otherwise
  *

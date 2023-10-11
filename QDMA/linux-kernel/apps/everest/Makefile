@@ -42,12 +42,19 @@ PTDR-TEST_OBJS += $(DMA-UTILS_OBJS)
 PTDR-TEST_OBJS += $(QDMA_OBJS)
 PTDR-TEST_OBJS += $(patsubst %.c,%.o,$(wildcard ./ptdr/*.c))
 
+PTDR-LIB = libptdr.so
+PTDR-LIB_OBJS += $(DMA-UTILS_OBJS)
+PTDR-LIB_OBJS += $(QDMA_OBJS)
+PTDR-LIB_OBJS += $(patsubst %.c,%.o,$(wildcard ./ptdr/ptdr_dev.c))
+PTDR-LIB_OBJS += $(patsubst %.c,%.o,$(wildcard ./ptdr/ptdr_api.c))
+
+
 ifneq ($(CROSS_COMPILE_FLAG),)
 	CC=$(CROSS_COMPILE_FLAG)gcc
 endif
 
 .PHONY: all
-all: clean helm-test ptdr-test
+all: clean helm-test ptdr-test ptdr-api
 
 .PHONY: helm-test
 helm-test: $(HELM-TEST_OBJS)
@@ -57,11 +64,15 @@ helm-test: $(HELM-TEST_OBJS)
 ptdr-test: $(PTDR-TEST_OBJS)
 	$(CC) -pthread -lrt  $^ -o $(PTDR-TEST) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
 
+.PHONY: ptdr-api
+ptdr-api: $(PTDR-LIB_OBJS)
+	$(CC) -pthread -lrt -shared -fPIC -Wl,-soname,$(PTDR-LIB) $^ -o $(PTDR-LIB) -laio -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE
+
 %.o: %.c
-	$(CC) $(CFLAGS) -c -std=c99 -o $@ $< -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE -D_AIO_AIX_SOURCE
+	$(CC) $(CFLAGS) -c -std=c99 -fPIC -o $@ $< -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGE_FILE_SOURCE -D_AIO_AIX_SOURCE
 
 .PHONY: clean
 clean:
 	@rm -f *.o */*.o ../dma-utils/*.o
-	rm -rf *.o *.bin $(HELM-TEST) $(PTDR-TEST)
+	rm -rf *.o *.bin $(HELM-TEST) $(PTDR-TEST) $(PTDR-LIB)
 

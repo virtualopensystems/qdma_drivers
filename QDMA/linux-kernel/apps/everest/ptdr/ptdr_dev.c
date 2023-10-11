@@ -276,7 +276,7 @@ int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
 
         // Duration start at 0, including the conversion vector
         if ((ret = ptdr_set_durations(dev, 0)) != 0) return ret;
-        debug_print("DUR     @0x%015lx %ld\n", 0, 0);
+        debug_print("DUR     @0x%015x %d\n", 0, 0);
         ptr += duration_size;
     }
 

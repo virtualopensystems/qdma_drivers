@@ -167,6 +167,21 @@ uninstall-dev:
 	@echo "Un-installing development headers under $(dev_install_path) ..."
 	@/bin/rm -r $(dev_install_path)
 
+.PHONY: install-everest-api
+install-everest-api:
+	@echo "installing EVEREST API ..."
+	@mkdir -p -m 755 /usr/local/lib/everest
+	@install -v -m 755 bin/libptdr.so /usr/local/lib/everest
+	@mkdir -p -m 755 /usr/local/include/everest
+	@install -v -m 755 apps/everest/ptdr/ptdr_api.h /usr/local/include/everest
+
+.PHONY: uninstall-everest-api
+uninstall-everest-api:
+	@echo "Un-installing EVEREST API ..."
+	@/bin/rm -r /usr/local/lib/everest
+	@/bin/rm -r /usr/local/include/everest
+
+
 .PHONY: help
 help:
 	@echo "Build Targets:";\
