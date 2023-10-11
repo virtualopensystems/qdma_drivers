@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     ERR_CHECK(ret);
 
     for (int i=0; i<SAMPLES_COUNT; i++) {
-        printf(" DUR[%02d] = %ld\n", i, dur_profiles[i]);
+        info_print(" DUR[%02d] = %ld\n", i, dur_profiles[i]);
     }
 
 
