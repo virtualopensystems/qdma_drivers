@@ -69,7 +69,6 @@ static void print_usage(char*argv[])
     printf("EVEREST PTDR kernel test\n");
     printf("Usage: %s [OPTION]...\n", argv[0]);
     printf("  -i FILE        specify input FILE\n");
-    printf("  -o FILE        specify output FILE\n");
     printf("  -v vf_num      specify VF number (-1 to use PF, default is -1)\n");
     printf("  -d device_id   specify device BDF\n");
     printf("  -q             quiet output\n");
@@ -129,7 +128,7 @@ int main(int argc, char *argv[])
     }
 
 
-    info_print("Pack inputs, sampl_counts %d\n", SAMPLES_COUNT);
+    info_print("Pack inputs, samples_count %d\n", SAMPLES_COUNT);
     uint64_t dur_profiles[SAMPLES_COUNT] = {0};
     uint64_t routepos_index = 0;
     uint64_t routepos_progress = ((uint64_t) ((double)0.0));
