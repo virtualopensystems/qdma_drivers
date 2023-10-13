@@ -110,7 +110,7 @@ void* ptdr_init(int vf_num, uint32_t bdf)
 
     debug_print("Initializing kernel @ 0x%016lx\n", kern_addr);
     ptdr->dev = ptdr_dev_init(kern_addr, kern_pci_bus, kern_pci_dev,
-                kern_pci_id, is_vf, vf_num);
+                kern_pci_id, is_vf, 0);
 
     if (ptdr->dev == NULL) {
         free(ptdr);
