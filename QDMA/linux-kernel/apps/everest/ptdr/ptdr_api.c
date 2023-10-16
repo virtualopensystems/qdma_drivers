@@ -37,7 +37,7 @@
 #define ERR_CHECK(err) do { \
     if (err < 0) { \
         fprintf(stderr, "Error %d\n", err); \
-        return -err;\
+        return err;\
     } \
 } while (0)
 
