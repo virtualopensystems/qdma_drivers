@@ -33,8 +33,8 @@
 
 #define ERR_CHECK(err) \
     do { \
-        if (err < 0) { \
-            fprintf(stderr, "Error %d\n", err); \
+        if (err != 0) { \
+            fprintf(stderr, "Test Error %d\n", err); \
             ptdr_destroy(kern); \
             exit(-err); \
         } \
