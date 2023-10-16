@@ -69,6 +69,7 @@ void* ptdr_init(int vf_num, uint32_t bdf)
     int kern_pci_dev;
     int kern_pci_id;
     int is_vf;
+    int ret;
 
     // Parse VF argument
     if (vf_num < -1 || vf_num > VF_NUM_MAX) {
@@ -116,6 +117,19 @@ void* ptdr_init(int vf_num, uint32_t bdf)
         free(ptdr);
         return NULL;
     }
+
+    debug_print("Setting num times to 1\n");
+    ret = ptdr_set_numtimes(ptdr->dev, 1);
+    ERR_CHECK(ret);
+
+    debug_print("Setting autorestart to 0\n");
+    ret = ptdr_autorestart(ptdr->dev, 0);
+    ERR_CHECK(ret);
+
+    debug_print("Setting interruptglobal to 0\n");
+    ret = ptdr_interruptglobal(ptdr->dev, 0);
+    ERR_CHECK(ret);
+
     debug_print("Kernel initialized correctly!\n");
 
     ptdr->hbm_addr = hbm_addr;
@@ -157,18 +171,6 @@ int ptdr_pack_input(void* dev, char* route_file, uint64_t *duration_v,
     ret = ptdr_dev_conf(ptdr->dev, route_file, duration_v, samples_count,
             routepos_index, routepos_progress, departure_time, seed,
             ptdr->hbm_addr);
-    ERR_CHECK(ret);
-
-    debug_print("Setting num times to 1\n");
-    ret = ptdr_set_numtimes(ptdr->dev, 1);
-    ERR_CHECK(ret);
-
-    debug_print("Setting autorestart to 0\n");
-    ret = ptdr_autorestart(ptdr->dev, 0);
-    ERR_CHECK(ret);
-
-    debug_print("Setting interruptglobal to 0\n");
-    ret = ptdr_interruptglobal(ptdr->dev, 0);
     ERR_CHECK(ret);
 
     return 0;
