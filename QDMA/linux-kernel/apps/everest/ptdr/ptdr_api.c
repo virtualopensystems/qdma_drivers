@@ -120,15 +120,24 @@ void* ptdr_init(int vf_num, uint32_t bdf)
 
     debug_print("Setting num times to 1\n");
     ret = ptdr_set_numtimes(ptdr->dev, 1);
-    ERR_CHECK(ret);
+    if (ret != 0) {
+        fprintf(stderr, "ERR: ptdr_set_numtimes failed with error %d\n", ret);
+        return NULL;
+    }
 
     debug_print("Setting autorestart to 0\n");
     ret = ptdr_autorestart(ptdr->dev, 0);
-    ERR_CHECK(ret);
+    if (ret != 0) {
+        fprintf(stderr, "ERR: ptdr_autorestart failed with error %d\n", ret);
+        return NULL;
+    }
 
     debug_print("Setting interruptglobal to 0\n");
     ret = ptdr_interruptglobal(ptdr->dev, 0);
-    ERR_CHECK(ret);
+    if (ret != 0) {
+        fprintf(stderr, "ERR: ptdr_interruptglobal failed with error %d\n", ret);
+        return NULL;
+    }
 
     debug_print("Kernel initialized correctly!\n");
 
