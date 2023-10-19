@@ -20,14 +20,10 @@
 /**
  * ptdr_init() - Initialize the PTDR device
  *
- * @vf_num:     Specify VF to use
- * @bdf:        PCI Bus ID of the kernel in the format 0x000BBDDF
- *                  B: Bus, D: Device, F: Function
- *
  * Return:      Pointer to the device, NULL on failure
  *
  *****************************************************************************/
-void* ptdr_init(int vf_num, uint32_t bdf);
+void* ptdr_init();
 
 /*****************************************************************************/
 /**

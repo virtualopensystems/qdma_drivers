@@ -69,8 +69,6 @@ static void print_usage(char*argv[])
     printf("EVEREST PTDR kernel test\n");
     printf("Usage: %s [OPTION]...\n", argv[0]);
     printf("  -i FILE        specify input FILE\n");
-    printf("  -v vf_num      specify VF number (-1 to use PF, default is -1)\n");
-    printf("  -d device_id   specify device BDF\n");
     printf("  -q             quiet output\n");
     printf("  -h             display this help and exit\n");
 }
@@ -79,25 +77,17 @@ int main(int argc, char *argv[])
 {
     int ret, opt;
     char *input_filename = NULL;
-    int vf_num = -1;
-    uint64_t bdf = 0xFFFFFFFF;
 
     signal(SIGINT, intHandler); // Register interrupt handler on CTRL-c
 
     // Parse command line
-    while ((opt = getopt(argc, argv, "hi:o:v:d:q")) != -1) {
+    while ((opt = getopt(argc, argv, "hi:o:q")) != -1) {
         switch (opt) {
             case 'h':
                 print_usage(argv);
                 exit(EXIT_SUCCESS);
             case 'i':
                 input_filename = optarg;
-                break;
-            case 'v':
-                vf_num = strtol(optarg, NULL, 0);
-                break;
-            case 'd':
-                bdf = strtol(optarg, NULL, 16);
                 break;
             case 'q':
                 quiet_flag = 1;
@@ -119,8 +109,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    info_print("Init PTDR VF %d BDF 0x%06lx\n", vf_num, bdf);
-    kern = ptdr_init(vf_num, bdf);
+    info_print("Init PTDR kernel\n");
+    kern = ptdr_init();
 
     if (kern == NULL) {
         printf("Error during init!\n");

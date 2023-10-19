@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#include <string.h>
 
 #include "ptdr_dev.h"
 #include "ptdr_api.h"
@@ -27,6 +28,8 @@
 
 #define ROUND_UP(num, pow)  ( (num + (pow-1)) & (~(pow-1)) )
 #define MEM_IN_SIZE         ( 0x700000 ) // Max sizeof data structure is 0x690AA8
+#define EVEREST_VF_PATTERN     "everestvf"
+#define EVEREST_FILEPATH     "/dev/virtio-ports"
 
 #ifdef DEBUG
 #define debug_print(format, ...)    printf("[PTDR] " format, ## __VA_ARGS__)
@@ -60,7 +63,30 @@ typedef struct {
     void* dev;
 } ptdr_t;
 
-void* ptdr_init(int vf_num, uint32_t bdf)
+static int get_vf_num(int *vf_idx, uint32_t *bdf)
+{
+    FILE *fp;
+    char path[512];
+    char name[20];
+    *vf_idx = -1;
+    *bdf = -1;
+
+    fp = popen("/bin/ls "EVEREST_FILEPATH, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "ERR %d: Failed opening file " EVEREST_FILEPATH "\n", errno);
+        return -1;
+    }
+    while (fgets(path, sizeof(path), fp) != NULL) {
+        if (sscanf(path, EVEREST_VF_PATTERN "_%d_%d", vf_idx, bdf)==2) {
+            return 0;
+        }
+    }
+    pclose(fp);
+    fprintf(stderr, "Could not find any vf_num\n");
+    return -1;
+}
+
+void* ptdr_init()
 {
     ptdr_t *ptdr;
     uint64_t kern_addr;
@@ -70,18 +96,12 @@ void* ptdr_init(int vf_num, uint32_t bdf)
     int kern_pci_id;
     int is_vf;
     int ret;
+    int vf_num;
+    uint32_t bdf;
 
-    // Parse VF argument
-    if (vf_num < -1 || vf_num > VF_NUM_MAX) {
-        fprintf(stderr, "Invalid vf_num %d (max is %d)\n", vf_num, VF_NUM_MAX);
+    get_vf_num(&vf_num, &bdf);
+    if (vf_num <= -1) {
         return NULL;
-    } else if (vf_num == -1) {
-        // PF mode uses kernel 0, the same of VF0
-        kern_addr       = KERN_BASE_ADDR;
-        hbm_addr        = MEM_IN_BASE_ADDR;
-        is_vf           = 0;
-        debug_print("PF mode:\n");
-        vf_num = 0;
     } else {
         // Addresses depends on VF num
         kern_addr       = KERN_BASE_ADDR + KERN_VF_INCR * vf_num;
@@ -91,11 +111,11 @@ void* ptdr_init(int vf_num, uint32_t bdf)
     }
 
     // Parse BDF argument
-    if (bdf > 0x0FFFFFFF) {
+    if (bdf > 0x000FFFFF) {
         fprintf(stderr, "Invalid BDF ID 0x%08x\n", bdf);
         return NULL;
     } else {
-        kern_pci_bus = (bdf >> 12) & 0x0FFFF;
+        kern_pci_bus = (bdf >> 12) & 0x0FF;
         kern_pci_dev = (bdf >> 4) & 0x0FF;
         kern_pci_id = bdf & 0x0F;
     }
