@@ -113,14 +113,13 @@ void* ptdr_init(uint64_t *mem_size)
     ret = get_vf_num(&curr_vf_num, &vf_idx, &bdf);
     if (ret == -1) {
         return NULL;
-    } else if (vf_idx <= -1 || vf_idx > VF_NUM_MAX) {
+    } else if (vf_idx < 0 || vf_idx >= VF_NUM_MAX) {
         fprintf(stderr, "ERR: Invalid VF idx number %d\n", vf_idx);
         return NULL;
     } else if (curr_vf_num <= 0 || curr_vf_num > VF_NUM_MAX) {
         fprintf(stderr, "ERR: Invalid current VF number %d\n", curr_vf_num);
         return NULL;
-    }
-    else {
+    } else {
         // Addresses depends on VF num
         uint64_t mem_size_per_vf = (MEM_END_ADDR - MEM_BASE_ADDR) / curr_vf_num;
         mem_start       = MEM_BASE_ADDR + mem_size_per_vf * vf_idx;
