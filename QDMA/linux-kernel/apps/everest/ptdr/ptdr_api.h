@@ -20,18 +20,20 @@
 /**
  * ptdr_init() - Initialize the PTDR device
  *
- * Return:      Pointer to the device, NULL on failure
+ * @mem_size:           Pointer where to return size of available mem for VF
+ *
+ * Return:              Pointer to the device, NULL on failure
  *
  *****************************************************************************/
-void* ptdr_init();
+void* ptdr_init(uint64_t *mem_size);
 
 /*****************************************************************************/
 /**
  * ptdr_destroy() - Destroy an initialized PTDR device
  *
- * @dev:        Device pointer
+ * @dev:                Device pointer
  *
- * Return:      0 on success, negative errno otherwise
+ * Return:              0 on success, negative errno otherwise
  *
  *****************************************************************************/
 int ptdr_destroy(void* dev);
@@ -86,5 +88,33 @@ int ptdr_run_kernel(void* dev, uint64_t timeout_us);
  *
  *****************************************************************************/
 int ptdr_unpack_output(void* dev, uint64_t *duration_v, uint64_t samples_count);
+
+/*****************************************************************************/
+/**
+ * mem_write() - Write into VF-allocated memory
+ *
+ * @dev:        Device pointer
+ * @data:       Pointer to data to write
+ * @size:       Size of the data to write
+ * @offset:     Address where to write to
+ *
+ * Return:      number of data written on success, negative errno otherwise
+ *
+ *****************************************************************************/
+ssize_t mem_write(void *dev, void* data, size_t size, uint64_t offset);
+
+/*****************************************************************************/
+/**
+ * mem_read() - Read from VF-allocated memory
+ *
+ * @dev:        Device pointer
+ * @data:       Pointer to buffer where to read the data into
+ * @size:       Size of the data to read
+ * @offset:     Address where to read from
+ *
+ * Return:      number of data read on success, negative errno otherwise
+ *
+ *****************************************************************************/
+ssize_t mem_read(void *dev, void* data, size_t size, uint64_t offset);
 
 #endif //#define PTDR_API_H

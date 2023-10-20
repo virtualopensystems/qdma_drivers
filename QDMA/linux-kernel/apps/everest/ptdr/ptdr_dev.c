@@ -248,14 +248,22 @@ read_err:
 int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
         uint64_t samples_count, uint64_t routepos_index,
         uint64_t routepos_progress, uint64_t departure_time,
-        uint64_t seed, uint64_t base)
+        uint64_t seed, uint64_t base, uint64_t end)
 {
     int ret = 0;
     ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
     CHECK_DEV_PTR(dev);
-
     ptdr_route_t route = {0};
     ptdr_routepos_t start_pos = {routepos_index, routepos_progress};
+
+    uint64_t ptdr_data_size = sizeof(struct vec_conv) + samples_count * sizeof(duration_v[0]) +
+        sizeof(route) + sizeof(start_pos) + sizeof(departure_time) + sizeof(seed);
+
+    debug_print("Config data size 0x%lx, mem avail 0x%lx\n", ptdr_data_size, end-base);
+    if (ptdr_data_size > (end - base)) {
+        fprintf(stderr, "VF does not have enough space (needed %ld, available %ld bytes)\n", ptdr_data_size, end-base);
+        return -ENOMEM;
+    }
 
     ret = ptdr_read_route_from_file(route_file, &route);
     if (ret != 0) {
@@ -303,9 +311,9 @@ int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
     if ((ret = ptdr_set_seed(dev, ptr)) != 0) return ret;
     debug_print("SEED    @0x%015lx %ld\n", ptr, ptr);
 
-    debug_print("\n\nS dur %ld route %ld pos %ld dep %ld seed %ld, tot %ld\n",
+    debug_print("\n\nS dur %ld route %ld pos %ld dep %ld seed %ld, tot %ld (0x%lx)\n",
                  samples_count*sizeof(uint64_t)+24, sizeof(route), sizeof(start_pos), sizeof(departure_time), sizeof(seed),
-                 ptr + sizeof(seed));
+                 ptr + sizeof(seed), ptr + sizeof(seed));
 
     // Set base register
     if ((ret = ptdr_set_base(dev, base)) != 0) return ret;
@@ -725,6 +733,20 @@ int ptdr_get_interruptstatus(void *dev, uint32_t *data)
     debug_print("In %s: ISR reg is 0x%08x\n", __func__, *data);
 
     return 0;
+}
+
+ssize_t ptdr_mem_write(void *dev, void* data, size_t size, uint64_t mem_addr) {
+    ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
+    CHECK_DEV_PTR(dev);
+
+    return queue_write(ptdr->q_info, data, size, mem_addr);
+}
+
+ssize_t ptdr_mem_read(void *dev, void* data, size_t size, uint64_t mem_addr) {
+    ptdr_dev_t *ptdr = (ptdr_dev_t*) dev;
+    CHECK_DEV_PTR(dev);
+
+    return queue_read(ptdr->q_info, data, size, mem_addr);
 }
 
 // For debug only

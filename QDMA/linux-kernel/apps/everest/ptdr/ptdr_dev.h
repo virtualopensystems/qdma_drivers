@@ -63,6 +63,7 @@ int ptdr_dev_destroy(void* dev);
  * @departure_time:     Departure time
  * @seed:               Seed for the RNG
  * @base:               Base address in memory where to write the data struct
+ * @end:                End of the available memory space
  *
  * Return:              0 on success, negative errno otherwise
  *
@@ -70,7 +71,7 @@ int ptdr_dev_destroy(void* dev);
 int ptdr_dev_conf(void* dev, char* route_file, uint64_t *duration_v,
         uint64_t samples_count, uint64_t routepos_index,
         uint64_t routepos_progress, uint64_t departure_time,
-        uint64_t seed, uint64_t base);
+        uint64_t seed, uint64_t base, uint64_t end);
 
 /*****************************************************************************/
 /**
@@ -387,6 +388,34 @@ int ptdr_set_base(void *dev, uint64_t data);
  *
  *****************************************************************************/
 int ptdr_get_base(void *dev, uint64_t *data);
+
+/*****************************************************************************/
+/**
+ * ptdr_mem_write() - Write into FPGA memory
+ *
+ * @dev:        Device pointer
+ * @data:       Pointer to data to write
+ * @size:       Size of the data to write
+ * @mem_addr:   Address where to write to
+ *
+ * Return:      number of data written on success, negative errno otherwise
+ *
+ *****************************************************************************/
+ssize_t ptdr_mem_write(void *dev, void* data, size_t size, uint64_t mem_addr);
+
+/*****************************************************************************/
+/**
+ * ptdr_mem_read() - Read from FPGA memory
+ *
+ * @dev:        Device pointer
+ * @data:       Pointer to buffer where to read the data into
+ * @size:       Size of the data to read
+ * @mem_addr:   Address where to read from
+ *
+ * Return:      number of data read on success, negative errno otherwise
+ *
+ *****************************************************************************/
+ssize_t ptdr_mem_read(void *dev, void* data, size_t size, uint64_t mem_addr);
 
 #ifdef DEBUG
 /*****************************************************************************/

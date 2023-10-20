@@ -27,6 +27,12 @@
 #define QDMA_Q_NAME_LEN     (32)
 #define QDMA_DEF_QUEUES     (2) // Number of queue to set
 
+// MAX READ?/WRITE SIZE LIMIT
+// The write(2) function supports up to 0x7ffff000ULL bytes (on most systems)
+// We are limited by a kmalloc in map_user_buf_to_sgl (cdev.c:274)
+// Empirically verified to be 0x019998198
+#define RW_MAX_SIZE         (0x019998198ULL)
+
 /* Additional debug prints  */
 #ifdef DEBUG_QDMA
 #define debug_print(format, ...)    printf("  [QDMA_Q] " format, ## __VA_ARGS__)
@@ -293,7 +299,7 @@ int queue_setup(struct queue_info **pq_info, struct queue_conf *q_conf)
 }
 
 // read_to_buffer() from dma_xfer_utils.c
-size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
+ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
 {
     ssize_t ret;
     uint64_t count = 0;
@@ -341,13 +347,12 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size, uint64_t
         fprintf(stderr, "ERR: Read failed 0x%lx != 0x%lx.\n", count, size);
         return -EIO;
     }
-
     return count;
 }
 
 
 // write_from_buffer() from dma_xfer_utils.c
-size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
+ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_t addr)
 {
     ssize_t ret;
     uint64_t count = 0;
@@ -355,12 +360,13 @@ size_t queue_write(struct queue_info *q_info, void *data, uint64_t size, uint64_
     char *buf = (char*) data;
     off_t offset = addr;
 
-    debug_print("In %s: W %lu bytes @ 0x%08lx dev %07x\n", __func__, size, addr, q_info->bdf);
+    debug_print("In %s: W 0x%lx bytes @ 0x%08lx dev %07x\n", __func__, size, addr, q_info->bdf);
     do { /* Support zero byte transfer */
         uint64_t bytes = size - count;
 
-        if (bytes > RW_MAX_SIZE)
+        if (bytes > RW_MAX_SIZE) {
             bytes = RW_MAX_SIZE;
+        }
 
         if (offset) {
             ret = lseek(fd, offset, SEEK_SET);

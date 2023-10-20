@@ -12,8 +12,6 @@
 #ifndef QDMA_QUEUES_H
 #define QDMA_QUEUES_H
 
-#define RW_MAX_SIZE (0x7ffff000)
-
 struct queue_info {
     int fd;
     int bdf;
@@ -69,7 +67,7 @@ int queue_destroy(struct queue_info *q_info);
  * Return:      Count of bytes read on success, negative errno otherwise
  *
  *****************************************************************************/
-size_t queue_read(struct queue_info *q_info, void *data, uint64_t size,
+ssize_t queue_read(struct queue_info *q_info, void *data, uint64_t size,
         uint64_t addr);
 
 /*****************************************************************************/
@@ -84,7 +82,7 @@ size_t queue_read(struct queue_info *q_info, void *data, uint64_t size,
  * Return:      Count of bytes written on success, negative errno otherwise
  *
  *****************************************************************************/
-size_t queue_write(struct queue_info *q_info, void *data, uint64_t size,
+ssize_t queue_write(struct queue_info *q_info, void *data, uint64_t size,
         uint64_t addr);
 
 #endif //#define QDMA_QUEUES_H

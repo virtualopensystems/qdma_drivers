@@ -21,15 +21,19 @@
 
 
 /* Fixed in ptdrXHBM.bit */
-#define MEM_IN_BASE_ADDR    (0x0000000000001000ULL) // input @ 0
+#define MEM_BASE_ADDR       (0x0000000000001000ULL) // input @ 0
+#ifdef HBM16GB
+#pragma message "HBM set to 16 GB"
+#define MEM_END_ADDR        (0x0000000400000000ULL) // Mem ends @ 16GB
+#else
+#define MEM_END_ADDR        (0x0000000200000000ULL) // Mem ends @ 8GB
+#endif
 #define KERN_BASE_ADDR      (0x0000000400000000ULL) // kernels starts after 16 GB of HBM
 #define KERN_VF_INCR        (0x0000000000010000ULL) // kernels offset
 #define VF_NUM_MAX          (252) // Max num of VF allowed by QDMA
 
-#define ROUND_UP(num, pow)  ( (num + (pow-1)) & (~(pow-1)) )
-#define MEM_IN_SIZE         ( 0x700000 ) // Max sizeof data structure is 0x690AA8
-#define EVEREST_VF_PATTERN     "everestvf"
-#define EVEREST_FILEPATH     "/dev/virtio-ports"
+#define EVEREST_VF_PATTERN  "everestvf"
+#define EVEREST_FILEPATH    "/dev/virtio-ports"
 
 #ifdef DEBUG
 #define debug_print(format, ...)    printf("[PTDR] " format, ## __VA_ARGS__)
@@ -58,56 +62,71 @@
 #define PTDR_MAGIC  ((uint64_t) 0x0050544452415049ULL)
 
 typedef struct {
-    uint64_t __sign;
-    uint64_t hbm_addr;
-    void* dev;
+    uint64_t    __sign;
+    uint64_t    mem_start;
+    uint64_t    mem_end;
+    void*       dev;
 } ptdr_t;
 
-static int get_vf_num(int *vf_idx, uint32_t *bdf)
+static int get_vf_num(int *curr_vf_num, int *vf_idx, uint32_t *bdf)
 {
     FILE *fp;
     char path[512];
-    char name[20];
+    *curr_vf_num = 0;
     *vf_idx = -1;
     *bdf = -1;
 
-    fp = popen("/bin/ls "EVEREST_FILEPATH, "r");
+    fp = popen("/bin/ls " EVEREST_FILEPATH, "r");
     if (fp == NULL) {
         fprintf(stderr, "ERR %d: Failed opening file " EVEREST_FILEPATH "\n", errno);
         return -1;
     }
+
     while (fgets(path, sizeof(path), fp) != NULL) {
-        if (sscanf(path, EVEREST_VF_PATTERN "_%d_%d", vf_idx, bdf)==2) {
+        if (sscanf(path, EVEREST_VF_PATTERN "_%d_%d_%x", curr_vf_num, vf_idx, bdf) == 3) {
+            debug_print("VF %d of %d, id %06x\n", *vf_idx, *curr_vf_num, *bdf);
+            pclose(fp);
             return 0;
         }
     }
+
     pclose(fp);
-    fprintf(stderr, "Could not find any vf_num\n");
+    fprintf(stderr, "ERR: Could not find any VF\n");
     return -1;
 }
 
-void* ptdr_init()
+void* ptdr_init(uint64_t *mem_size)
 {
     ptdr_t *ptdr;
     uint64_t kern_addr;
-    uint64_t hbm_addr;
+    uint64_t mem_start;
+    uint64_t mem_end;
     int kern_pci_bus;
     int kern_pci_dev;
     int kern_pci_id;
     int is_vf;
     int ret;
-    int vf_num;
+    int curr_vf_num;
+    int vf_idx;
     uint32_t bdf;
 
-    get_vf_num(&vf_num, &bdf);
-    if (vf_num <= -1) {
+    ret = get_vf_num(&curr_vf_num, &vf_idx, &bdf);
+    if (ret == -1) {
         return NULL;
-    } else {
+    } else if (vf_idx <= -1 || vf_idx > VF_NUM_MAX) {
+        fprintf(stderr, "ERR: Invalid VF idx number %d\n", vf_idx);
+        return NULL;
+    } else if (curr_vf_num <= 0 || curr_vf_num > VF_NUM_MAX) {
+        fprintf(stderr, "ERR: Invalid current VF number %d\n", curr_vf_num);
+        return NULL;
+    }
+    else {
         // Addresses depends on VF num
-        kern_addr       = KERN_BASE_ADDR + KERN_VF_INCR * vf_num;
-        hbm_addr        = MEM_IN_BASE_ADDR + ROUND_UP(MEM_IN_SIZE,4096) * vf_num;
+        uint64_t mem_size_per_vf = (MEM_END_ADDR - MEM_BASE_ADDR) / curr_vf_num;
+        mem_start       = MEM_BASE_ADDR + mem_size_per_vf * vf_idx;
+        mem_end         = mem_start + mem_size_per_vf;
+        kern_addr       = KERN_BASE_ADDR + KERN_VF_INCR * vf_idx;
         is_vf           = 1; //Activate VF mode
-        debug_print("VF mode: VF num %d\n", vf_num);
     }
 
     // Parse BDF argument
@@ -120,7 +139,7 @@ void* ptdr_init()
         kern_pci_id = bdf & 0x0F;
     }
 
-    debug_print("MEM IN  0x%016lx - 0x%016lx\n", hbm_addr, hbm_addr+MEM_IN_SIZE);
+    debug_print("MEM     0x%016lx - 0x%016lx\n", mem_start, mem_end);
     debug_print("PCI dev %04x:%02x.%01x\n", kern_pci_bus, kern_pci_dev, kern_pci_id);
 
     ptdr = (ptdr_t*) malloc(sizeof(ptdr_t));
@@ -161,8 +180,11 @@ void* ptdr_init()
 
     debug_print("Kernel initialized correctly!\n");
 
-    ptdr->hbm_addr = hbm_addr;
+    ptdr->mem_start = mem_start;
+    ptdr->mem_end = mem_end;
     ptdr->__sign = PTDR_MAGIC;
+
+    *mem_size = mem_end - mem_start;
 
     return (void*) ptdr;
 }
@@ -195,11 +217,11 @@ int ptdr_pack_input(void* dev, char* route_file, uint64_t *duration_v,
         return -EINVAL;
     }
 
-    debug_print("\nConfiguring kernel\n");
+    debug_print("Configuring kernel\n");
     // Create memory structure for kernel and fill it from file
     ret = ptdr_dev_conf(ptdr->dev, route_file, duration_v, samples_count,
             routepos_index, routepos_progress, departure_time, seed,
-            ptdr->hbm_addr);
+            ptdr->mem_start, ptdr->mem_end);
     ERR_CHECK(ret);
 
     return 0;
@@ -237,7 +259,7 @@ int ptdr_run_kernel(void* dev, uint64_t timeout_us)
         }
     }
 
-    debug_print("\nStarting kernel operations\n");
+    debug_print("Starting kernel operations\n");
     ret = ptdr_start(ptdr->dev);
     ERR_CHECK(ret);
     if (ptdr_isdone(ptdr->dev)) {
@@ -278,13 +300,47 @@ int ptdr_unpack_output(void* dev, uint64_t *duration_v, uint64_t samples_count)
     ptdr_t *ptdr = (ptdr_t*) dev;
     CHECK_DEV_PTR(dev);
 
-    ret = ptdr_dev_get_durv(ptdr->dev, duration_v, samples_count, ptdr->hbm_addr);
+    ret = ptdr_dev_get_durv(ptdr->dev, duration_v, samples_count, ptdr->mem_start);
     ERR_CHECK(ret);
 
-    for (int i = 0; i < samples_count; i++) {
-        debug_print("DUR[%02d] = %ld\n", i, duration_v[i]);
+    return 0;
+}
+
+ssize_t mem_write(void *dev, void* data, size_t size, uint64_t offset)
+{
+    ptdr_t *ptdr = (ptdr_t*) dev;
+    CHECK_DEV_PTR(dev);
+
+    uint64_t mem_addr = ptdr->mem_start + offset;
+
+    if ((mem_addr < ptdr->mem_start) || (mem_addr >= ptdr->mem_end)) {
+        fprintf(stderr, "ERR: offset out of bounds\n");
+        return -EFAULT;
+    }
+    if ((mem_addr + size) > ptdr->mem_end)  {
+        fprintf(stderr, "ERR: size out of bounds\n");
+        return -EFBIG;
     }
 
-    return 0;
+    return ptdr_mem_write(ptdr->dev, data, size, mem_addr);
+}
+
+ssize_t mem_read(void *dev, void* data, size_t size, uint64_t offset)
+{
+    ptdr_t *ptdr = (ptdr_t*) dev;
+    CHECK_DEV_PTR(dev);
+
+    uint64_t mem_addr = ptdr->mem_start + offset;
+
+    if ((mem_addr < ptdr->mem_start) || (mem_addr >= ptdr->mem_end)) {
+        fprintf(stderr, "ERR: offset out of bounds\n");
+        return -EFAULT;
+    }
+    if ((mem_addr + size) > ptdr->mem_end)  {
+        fprintf(stderr, "ERR: size out of bounds\n");
+        return -EFBIG;
+    }
+
+    return ptdr_mem_read(ptdr->dev, data, size, mem_addr);
 }
 
