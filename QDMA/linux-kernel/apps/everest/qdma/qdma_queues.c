@@ -24,10 +24,10 @@
 #define QCONF_TO_BDF(qconf) (((unsigned int)qconf->pci_bus << 12) | \
                             ((unsigned int)qconf->pci_dev << 4) | \
                             (q_conf->fun_id))
-#define QDMA_Q_NAME_LEN     (32)
+#define QDMA_Q_NAME_LEN     (100)
 #define QDMA_DEF_QUEUES     (2) // Number of queue to set
 
-// MAX READ?/WRITE SIZE LIMIT
+// MAX READ/WRITE SIZE LIMIT
 // The write(2) function supports up to 0x7ffff000ULL bytes (on most systems)
 // We are limited by a kmalloc in map_user_buf_to_sgl (cdev.c:274)
 // Empirically verified to be 0x019998198
