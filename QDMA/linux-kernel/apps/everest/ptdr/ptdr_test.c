@@ -115,12 +115,45 @@ void mem_tests()
         }
     }
 
+    printf("\nAllocating big buffer for tests, size %ld bytes (%ld MB)\n", vf_mem_size+1, (vf_mem_size+1) >> 20);
     char* wr_test = (char*) malloc(vf_mem_size+1);
     if (wr_test == NULL) {
-        printf("ERR %d while allocating %ld bytes!\n", errno, vf_mem_size+1);
+        printf("ERR %d while allocating %ld bytes for wr_test!\n", errno, vf_mem_size+1);
         ERR_CHECK(-errno);
     }
+    printf("Now filling it with random data, this may take a while...\n");
+    srand(time(0));
+    for (uint64_t i = 0; i<vf_mem_size+1; i++) {
+        wr_test[i] = (char) rand();
+    }
 
+    printf("\n[TEST %02d] Write max allowed size %ld (0x%lx) bytes\n", ++test_num, vf_mem_size, vf_mem_size);
+    size = vf_mem_size;
+    ret = mem_write(kern, wr_test, size, offset);
+    if (ret != size) {
+        printf("[TEST %02d] Failed with error %ld, expected %ld\n", test_num, ret, size);
+        test_fail++;
+    }
+
+    printf("\nAllocating big buffer for read back test, size %ld bytes (%ld MB)\n", vf_mem_size+1, (vf_mem_size+1) >> 20);
+    char* rd_test = (char*) calloc(vf_mem_size+1, 1);
+    if (rd_test == NULL) {
+        printf("ERR %d while allocating %ld bytes for rd_test, skipping test\n", errno, vf_mem_size+1);
+        goto after_read;
+    }
+
+    printf("\n[TEST %02d] Read back memory and check content\n", ++test_num);
+    ret = mem_read(kern, rd_test, size, offset);
+    if (ret != size) {
+        printf("[TEST %02d] Failed with error %ld, expected %ld\n", test_num, ret, size);
+        test_fail++;
+    } else if ((ret = memcmp(wr_test, rd_test, size)) != 0) {
+        printf("[TEST %02d] Failed check, ret is %ld\n", test_num, ret);
+        test_fail++;
+    }
+    free(rd_test);
+
+after_read:
     printf("\n[TEST %02d] Write max allowed size\n", ++test_num);
     size = vf_mem_size;
     ret = mem_write(kern, wr_test, size, offset);
@@ -164,6 +197,7 @@ void mem_tests()
         test_fail++;
     }
 
+    free(wr_test);
     printf("\n[TEST] passed %d out of %d tests (failed %d)\n\n", test_num-test_fail, test_num, test_fail);
     return;
 }

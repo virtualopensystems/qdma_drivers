@@ -30,8 +30,12 @@
 // MAX READ/WRITE SIZE LIMIT
 // The write(2) function supports up to 0x7ffff000ULL bytes (on most systems)
 // We are limited by a kmalloc in map_user_buf_to_sgl (cdev.c:274)
-// Empirically verified to be 0x019998198
+// Values empirically verified
+#ifdef HBM16GB
+#define RW_MAX_SIZE         (0x019998066ULL)
+#else
 #define RW_MAX_SIZE         (0x019998198ULL)
+#endif
 
 /* Additional debug prints  */
 #ifdef DEBUG_QDMA
