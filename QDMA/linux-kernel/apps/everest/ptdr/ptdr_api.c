@@ -34,6 +34,7 @@
 
 #define EVEREST_VF_PATTERN  "everestvf"
 #define EVEREST_FILEPATH    "/dev/virtio-ports"
+#define DRIVER_TYPE         "ptdr"
 
 #ifdef DEBUG
 #define debug_print(format, ...)    printf("[PTDR] " format, ## __VA_ARGS__)
@@ -72,6 +73,7 @@ static int get_vf_num(int *curr_vf_num, int *vf_idx, uint32_t *bdf)
 {
     FILE *fp;
     char path[512];
+    char vf_type[15];
     *curr_vf_num = 0;
     *vf_idx = -1;
     *bdf = -1;
@@ -83,9 +85,23 @@ static int get_vf_num(int *curr_vf_num, int *vf_idx, uint32_t *bdf)
     }
 
     while (fgets(path, sizeof(path), fp) != NULL) {
-        if (sscanf(path, EVEREST_VF_PATTERN "_%d_%d_%x", curr_vf_num, vf_idx, bdf) == 3) {
-            debug_print("VF %d of %d, id %06x\n", *vf_idx, *curr_vf_num, *bdf);
+        if (sscanf(path, EVEREST_VF_PATTERN "_%d_%d_%x_%14s", curr_vf_num, vf_idx, bdf, vf_type) == 4) {
+            debug_print("VF %d of %d, id %06x, type %s \n", *vf_idx, *curr_vf_num, *bdf, vf_type);
+
             pclose(fp);
+            if (strcmp(vf_type, DRIVER_TYPE) != 0) {
+                fprintf(stderr, "ERR: VF type %s is not supported by this driver\n", vf_type);
+                return -1;
+            }
+            if (*vf_idx < 0 || *vf_idx >= VF_NUM_MAX) {
+                fprintf(stderr, "ERR: Invalid VF idx number %d\n", *vf_idx);
+                return -1;
+            }
+            if (*curr_vf_num <= 0 || *curr_vf_num > VF_NUM_MAX) {
+                fprintf(stderr, "ERR: Invalid current VF number %d\n", *curr_vf_num);
+                return -1;
+            }
+
             return 0;
         }
     }
@@ -112,12 +128,6 @@ void* ptdr_init(uint64_t *mem_size)
 
     ret = get_vf_num(&curr_vf_num, &vf_idx, &bdf);
     if (ret == -1) {
-        return NULL;
-    } else if (vf_idx < 0 || vf_idx >= VF_NUM_MAX) {
-        fprintf(stderr, "ERR: Invalid VF idx number %d\n", vf_idx);
-        return NULL;
-    } else if (curr_vf_num <= 0 || curr_vf_num > VF_NUM_MAX) {
-        fprintf(stderr, "ERR: Invalid current VF number %d\n", curr_vf_num);
         return NULL;
     } else {
         // Addresses depends on VF num
