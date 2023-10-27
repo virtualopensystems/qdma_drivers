@@ -170,6 +170,7 @@ void* ptdr_init(uint64_t *mem_size)
     ret = ptdr_set_numtimes(ptdr->dev, 1);
     if (ret != 0) {
         fprintf(stderr, "ERR: ptdr_set_numtimes failed with error %d\n", ret);
+        ptdr_dev_destroy(ptdr->dev);
         return NULL;
     }
 
@@ -177,6 +178,7 @@ void* ptdr_init(uint64_t *mem_size)
     ret = ptdr_autorestart(ptdr->dev, 0);
     if (ret != 0) {
         fprintf(stderr, "ERR: ptdr_autorestart failed with error %d\n", ret);
+        ptdr_dev_destroy(ptdr->dev);
         return NULL;
     }
 
@@ -184,6 +186,7 @@ void* ptdr_init(uint64_t *mem_size)
     ret = ptdr_interruptglobal(ptdr->dev, 0);
     if (ret != 0) {
         fprintf(stderr, "ERR: ptdr_interruptglobal failed with error %d\n", ret);
+        ptdr_dev_destroy(ptdr->dev);
         return NULL;
     }
 
